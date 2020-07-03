@@ -1,0 +1,23 @@
+program: (struct|function)*
+
+struct: "struct" IDENTIFIER "{" struct_field* "}"
+struct_field: var_with_type ";"
+
+function: "fn" IDENTIFIER "(" var_with_type? ("," var_with_type)* ")" "->" with_block? "{" function_body "}"
+with_block: "with" var_with_type ("," var_with_type)*
+function_body: statement*
+
+statement: if | ifelse | while | simple_stmt
+if: "if" expression "{" statement* "}"
+ifelse: "if" expression "{" statement* "}" else (if | ifelse | "{" statement* "}")
+while: "while" expression "{" statement* "}"
+simple_stat: assignment | expression ";"
+assignment: IDENTIFIER "=" expression
+
+expression: "(" expression ")" | "not" expression | expression "and" expression | expression "or" expression | cond_expr
+cond_expr: val_expr | val_expr ("==" | "!=" | "<" | ">" | "<=" | ">=") val_expr
+val_expr: "(" val_expr ")" | "-" val_expr | val_expr ("+"|"-"|"+"|"/") val_expr | call_expr
+call_expr: atom_expr | call_expr "." IDENTIFIER ("(" expression? ("," expression)? ")")
+atom_exor: IDENTIFIER | INT_LITERAL | FLOAT_LITERAL | STRING_LITERAL | BOOL_LITERAL
+
+var_with_type: IDENTIFIER ":" TYPE

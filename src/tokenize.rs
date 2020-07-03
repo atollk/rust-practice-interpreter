@@ -1,7 +1,10 @@
+use std::collections::HashMap;
+
 pub mod tokens {
     #[derive(Debug)]
     #[derive(std::cmp::PartialEq)]
     pub enum LiteralToken {
+        Bool(bool),
         Integer(i32),
         Float(f64),
         String(String),
@@ -65,8 +68,6 @@ pub mod tokens {
         Identifier(String),
         Whitespace,
     }
-
-    use std::collections::HashMap;
 
     lazy_static! {
         static ref KEYWORD_MAP: HashMap<KeywordToken, &'static str> = vec!{
@@ -142,6 +143,8 @@ mod matcher {
         let matched_str = m.as_str();
         *byte_index += matched_str.len();
         let token = match matched_str {
+            "true" => super::tokens::Token::Literal(super::tokens::LiteralToken::Bool(true)),
+            "false" => super::tokens::Token::Literal(super::tokens::LiteralToken::Bool(false)),
             "fn" => super::tokens::Token::Keyword(super::tokens::KeywordToken::Fn),
             "struct" => super::tokens::Token::Keyword(super::tokens::KeywordToken::Struct),
             "with" => super::tokens::Token::Keyword(super::tokens::KeywordToken::With),
@@ -273,6 +276,7 @@ mod tests {
 
     #[test]
     fn test_tokenize_primitives() {
+        let bool_literal = "false";
         let int_literal = "42";
         let float_literal = "123.456";
         let string_literal = "\"hello world\"";
@@ -313,6 +317,7 @@ mod tests {
         let symbol_greaterequal = ">=";
         let identifier = "foo";
 
+        assert_eq!(one_token(bool_literal), Token::Literal(LiteralToken::Bool(false)));
         assert_eq!(one_token(int_literal), Token::Literal(LiteralToken::Integer(42)));
         assert_eq!(one_token(float_literal), Token::Literal(LiteralToken::Float(123.456)));
         assert_eq!(one_token(string_literal), Token::Literal(LiteralToken::String("hello world".to_owned())));
