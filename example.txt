@@ -1,0 +1,23 @@
+
+struct X {
+    a: int;
+    b: float;
+    c: string;
+}
+
+
+fn max(a: int, b: int) -> int {
+    if a < b {
+        return b;
+    } else {
+        return a;
+    }
+}
+
+
+fn main()
+    with x: int
+{
+    x := max(1, 2);
+    print(a)
+}
