@@ -1,11 +1,15 @@
 program: (struct|function)*
 
-struct: "struct" IDENTIFIER "{" struct_field* "}"
+struct: "struct" IDENTIFIER "{" struct_body "}"
+struct_body: struct_field*
 struct_field: var_with_type ";"
 
-function: "fn" IDENTIFIER "(" var_with_type? ("," var_with_type)* ")" "->" with_block? "{" function_body "}"
+function: "fn" IDENTIFIER "(" fn_args ")" "->" with_block? "{" function_body "}"
+fn_args: var_with_type? ("," var_with_type)*
 with_block: "with" var_with_type ("," var_with_type)*
 function_body: statement*
+
+var_with_type: IDENTIFIER ":" TYPE
 
 statement: if | ifelse | while | simple_stmt
 if: "if" expression "{" statement* "}"
@@ -19,5 +23,3 @@ cond_expr: val_expr | val_expr ("==" | "!=" | "<" | ">" | "<=" | ">=") val_expr
 val_expr: "(" val_expr ")" | "-" val_expr | val_expr ("+"|"-"|"+"|"/") val_expr | call_expr
 call_expr: atom_expr | call_expr "." IDENTIFIER ("(" expression? ("," expression)? ")")
 atom_exor: IDENTIFIER | INT_LITERAL | FLOAT_LITERAL | STRING_LITERAL | BOOL_LITERAL
-
-var_with_type: IDENTIFIER ":" TYPE

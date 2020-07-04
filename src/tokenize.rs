@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 pub mod tokens {
     #[derive(Debug)]
     #[derive(std::cmp::PartialEq)]
@@ -69,18 +67,22 @@ pub mod tokens {
         Whitespace,
     }
 
+    #[derive(Debug)]
+    #[derive(std::cmp::PartialEq)]
+    pub struct PositionalToken {
+        pub token: Token,
+        pub line: usize,
+        pub column: usize,
+    }
+
+    use std::collections::HashMap;
+
     lazy_static! {
         static ref KEYWORD_MAP: HashMap<KeywordToken, &'static str> = vec!{
             (KeywordToken::Fn, "fn"),
             (KeywordToken::Struct, "struct")
         }.into_iter().collect();
     }
-}
-
-#[derive(Debug)]
-pub struct TokenizeError {
-    line: u32,
-    col: u32,
 }
 
 
@@ -225,8 +227,13 @@ mod matcher {
     }
 }
 
+#[derive(Debug)]
+pub struct TokenizeError {
+    line: usize,
+    column: usize,
+}
 
-fn index_to_lcol(text: &str, byte_index: usize) -> (u32, u32) {
+fn index_to_lcol(text: &str, byte_index: usize) -> (usize, usize) {
     let mut line = 0;
     let mut col = 0;
     for (pos, chr) in text.char_indices() {
@@ -243,20 +250,26 @@ fn index_to_lcol(text: &str, byte_index: usize) -> (u32, u32) {
     (0, 0)
 }
 
-fn error_from_byte_index(input: &str, byte_index: usize) -> TokenizeError {
-    let (line, col) = index_to_lcol(input, byte_index);
-    TokenizeError { line, col }
+
+pub fn tokenize_once(input: &str, byte_index: &mut usize)
+                     -> Result<tokens::PositionalToken, TokenizeError>
+{
+    let (line, column) = index_to_lcol(input, *byte_index);
+    match matcher::match_one_token(input, byte_index) {
+        Some(token) => Ok(tokens::PositionalToken { token, line, column }),
+        None => Err(TokenizeError { line, column })
+    }
 }
 
 
-pub fn tokenize(input: &str) -> Result<Vec<tokens::Token>, TokenizeError> {
+pub fn tokenize(input: &str) -> Result<Vec<tokens::PositionalToken>, TokenizeError> {
     let mut tokens = Vec::new();
     let mut byte_index: usize = 0;
     while byte_index < input.len() {
-        match matcher::match_one_token(input, &mut byte_index) {
-            Some(tokens::Token::Whitespace) => (),
-            Some(token) => tokens.push(token),
-            None => return Err(error_from_byte_index(input, byte_index))
+        let token = tokenize_once(input, &mut byte_index)?;
+        match token.token {
+            tokens::Token::Whitespace => (),
+            _ => tokens.push(token)
         };
     }
     Ok(tokens)
@@ -269,9 +282,10 @@ mod tests {
     use super::tokens::*;
 
     fn one_token(input: &str) -> Token {
-        let mut tokens = tokenize(input).unwrap();
-        assert_eq!(tokens.len(), 1);
-        tokens.remove(0)
+        let mut index = 0;
+        let mut token = tokenize_once(input, &mut index).unwrap();
+        assert_eq!(index, input.len());
+        token.token
     }
 
     #[test]
@@ -386,28 +400,28 @@ mod tests {
         let symbols_4 = "= =- >";
 
         let expected_tokens_1 = vec!(
-            Token::Symbol(SymbolToken::Period),
-            Token::Symbol(SymbolToken::Period),
-            Token::Symbol(SymbolToken::Colon),
-            Token::Symbol(SymbolToken::Comma),
-            Token::Symbol(SymbolToken::Period),
+            PositionalToken { token: Token::Symbol(SymbolToken::Period), line: 0, column: 0 },
+            PositionalToken { token: Token::Symbol(SymbolToken::Period), line: 0, column: 1 },
+            PositionalToken { token: Token::Symbol(SymbolToken::Colon), line: 0, column: 2 },
+            PositionalToken { token: Token::Symbol(SymbolToken::Comma), line: 0, column: 3 },
+            PositionalToken { token: Token::Symbol(SymbolToken::Period), line: 0, column: 4 },
         );
         let expected_tokens_2 = vec!(
-            Token::Symbol(SymbolToken::Equal),
-            Token::Symbol(SymbolToken::Equal),
-            Token::Symbol(SymbolToken::Assign),
+            PositionalToken { token: Token::Symbol(SymbolToken::Equal), line: 0, column: 0 },
+            PositionalToken { token: Token::Symbol(SymbolToken::Equal), line: 0, column: 2 },
+            PositionalToken { token: Token::Symbol(SymbolToken::Assign), line: 0, column: 4 },
         );
         let expected_tokens_3 = vec!(
-            Token::Symbol(SymbolToken::LeftAngle),
-            Token::Symbol(SymbolToken::Minus),
-            Token::Symbol(SymbolToken::RightArrow),
-            Token::Symbol(SymbolToken::RightAngle),
+            PositionalToken { token: Token::Symbol(SymbolToken::LeftAngle), line: 0, column: 0 },
+            PositionalToken { token: Token::Symbol(SymbolToken::Minus), line: 0, column: 1 },
+            PositionalToken { token: Token::Symbol(SymbolToken::RightArrow), line: 0, column: 2 },
+            PositionalToken { token: Token::Symbol(SymbolToken::RightAngle), line: 0, column: 4 },
         );
         let expected_tokens_4 = vec!(
-            Token::Symbol(SymbolToken::Assign),
-            Token::Symbol(SymbolToken::Assign),
-            Token::Symbol(SymbolToken::Minus),
-            Token::Symbol(SymbolToken::RightAngle),
+            PositionalToken { token: Token::Symbol(SymbolToken::Assign), line: 0, column: 0 },
+            PositionalToken { token: Token::Symbol(SymbolToken::Assign), line: 0, column: 2 },
+            PositionalToken { token: Token::Symbol(SymbolToken::Minus), line: 0, column: 3 },
+            PositionalToken { token: Token::Symbol(SymbolToken::RightAngle), line: 0, column: 5 },
         );
 
         assert_eq!(tokenize(symbols_1).unwrap(), expected_tokens_1);
@@ -420,7 +434,7 @@ mod tests {
     #[test]
     fn test_complete_code() {
         let code =
-"
+            "
 struct X {
     a: int;
     b: float;
@@ -442,20 +456,24 @@ fn main()
     print(x);
 }
 ";
-        let tokens = tokenize(code).unwrap();
+        let tokens: Vec<_> = tokenize(code)
+            .unwrap()
+            .into_iter()
+            .map(|pt| pt.token)
+            .collect();
 
         assert_eq!(tokens.len(), 70);
 
-        assert_eq!(tokens[ 0], Token::Keyword(KeywordToken::Struct));
-        assert_eq!(tokens[ 1], Token::Identifier("X".to_owned()));
-        assert_eq!(tokens[ 2], Token::Symbol(SymbolToken::LeftBrace));
-        assert_eq!(tokens[ 3], Token::Identifier("a".to_owned()));
-        assert_eq!(tokens[ 4], Token::Symbol(SymbolToken::Colon));
-        assert_eq!(tokens[ 5], Token::Keyword(KeywordToken::Int));
-        assert_eq!(tokens[ 6], Token::Symbol(SymbolToken::Semicolon));
-        assert_eq!(tokens[ 7], Token::Identifier("b".to_owned()));
-        assert_eq!(tokens[ 8], Token::Symbol(SymbolToken::Colon));
-        assert_eq!(tokens[ 9], Token::Keyword(KeywordToken::Float));
+        assert_eq!(tokens[0], Token::Keyword(KeywordToken::Struct));
+        assert_eq!(tokens[1], Token::Identifier("X".to_owned()));
+        assert_eq!(tokens[2], Token::Symbol(SymbolToken::LeftBrace));
+        assert_eq!(tokens[3], Token::Identifier("a".to_owned()));
+        assert_eq!(tokens[4], Token::Symbol(SymbolToken::Colon));
+        assert_eq!(tokens[5], Token::Keyword(KeywordToken::Int));
+        assert_eq!(tokens[6], Token::Symbol(SymbolToken::Semicolon));
+        assert_eq!(tokens[7], Token::Identifier("b".to_owned()));
+        assert_eq!(tokens[8], Token::Symbol(SymbolToken::Colon));
+        assert_eq!(tokens[9], Token::Keyword(KeywordToken::Float));
         assert_eq!(tokens[10], Token::Symbol(SymbolToken::Semicolon));
         assert_eq!(tokens[11], Token::Identifier("c".to_owned()));
         assert_eq!(tokens[12], Token::Symbol(SymbolToken::Colon));
