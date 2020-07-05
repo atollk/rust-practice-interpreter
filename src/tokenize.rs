@@ -20,12 +20,10 @@ pub mod tokens {
         Else,
         While,
         Return,
+        Bool,
         Int,
         Float,
         String,
-        And,
-        Or,
-        Not,
     }
 
     #[derive(Debug)]
@@ -41,20 +39,12 @@ pub mod tokens {
         RightBracket,
         LeftAngle,
         RightAngle,
-        Plus,
-        Minus,
-        Asterik,
-        Slash,
         RightArrow,
         Assign,
         Colon,
         Comma,
         Semicolon,
         Period,
-        Equal,
-        Unequal,
-        LessEqual,
-        GreaterEqual,
     }
 
     #[derive(Debug)]
@@ -157,9 +147,6 @@ mod matcher {
             "int" => super::tokens::Token::Keyword(super::tokens::KeywordToken::Int),
             "float" => super::tokens::Token::Keyword(super::tokens::KeywordToken::Float),
             "string" => super::tokens::Token::Keyword(super::tokens::KeywordToken::String),
-            "and" => super::tokens::Token::Keyword(super::tokens::KeywordToken::And),
-            "or" => super::tokens::Token::Keyword(super::tokens::KeywordToken::Or),
-            "not" => super::tokens::Token::Keyword(super::tokens::KeywordToken::Not),
             _ => super::tokens::Token::Identifier(matched_str.to_owned())
         };
         Some(token)
@@ -173,53 +160,21 @@ mod matcher {
             ')' => Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::RightParenthesis)),
             '[' => Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::LeftBracket)),
             ']' => Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::RightBracket)),
-            '<' => {
-                if let Some('=') = text[*byte_index..].chars().nth(1) {
-                    *byte_index += 1;
-                    Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::LessEqual))
-                } else {
-                    Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::LeftAngle))
-                }
-            }
-            '>' => {
-                if let Some('=') = text[*byte_index..].chars().nth(1) {
-                    *byte_index += 1;
-                    Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::GreaterEqual))
-                } else {
-                    Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::RightAngle))
-                }
-            }
-            '+' => Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::Plus)),
+            '<' => Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::LeftAngle)),
+            '>' => Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::RightAngle)),
             '-' => {
                 if let Some('>') = text[*byte_index..].chars().nth(1) {
                     *byte_index += 1;
                     Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::RightArrow))
                 } else {
-                    Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::Minus))
+                    None
                 }
             }
-            '*' => Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::Asterik)),
-            '/' => Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::Slash)),
-            '=' => {
-                if let Some('=') = text[*byte_index..].chars().nth(1) {
-                    *byte_index += 1;
-                    Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::Equal))
-                } else {
-                    Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::Assign))
-                }
-            }
+            '=' => Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::Assign)),
             ':' => Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::Colon)),
             ',' => Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::Comma)),
             ';' => Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::Semicolon)),
             '.' => Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::Period)),
-            '!' => {
-                if let Some('=') = text[*byte_index..].chars().nth(1) {
-                    *byte_index += 1;
-                    Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::Unequal))
-                } else {
-                    None
-                }
-            }
             _ => None
         };
         *byte_index += 1;
@@ -302,11 +257,9 @@ mod tests {
         let keyword_while = "while";
         let keyword_return = "return";
         let keyword_int = "int";
+        let keyword_bool = "bool";
         let keyword_float = "float";
         let keyword_string = "string";
-        let keyword_and = "and";
-        let keyword_or = "or";
-        let keyword_not = "not";
         let symbol_lbrace = "{";
         let symbol_rbrace = "}";
         let symbol_lparant = "(";
@@ -315,20 +268,12 @@ mod tests {
         let symbol_rbracket = "]";
         let symbol_langle = "<";
         let symbol_rangle = ">";
-        let symbol_plus = "+";
-        let symbol_minus = "-";
-        let symbol_asterik = "*";
-        let symbol_slash = "/";
         let symbol_rightarrow = "->";
         let symbol_assign = "=";
         let symbol_colon = ":";
         let symbol_comma = ",";
         let symbol_semicolon = ";";
         let symbol_period = ".";
-        let symbol_equal = "==";
-        let symbol_unequal = "!=";
-        let symbol_lessequal = "<=";
-        let symbol_greaterequal = ">=";
         let identifier = "foo";
 
         assert_eq!(one_token(bool_literal), Token::Literal(LiteralToken::Bool(false)));
@@ -343,11 +288,9 @@ mod tests {
         assert_eq!(one_token(keyword_while), Token::Keyword(KeywordToken::While));
         assert_eq!(one_token(keyword_return), Token::Keyword(KeywordToken::Return));
         assert_eq!(one_token(keyword_int), Token::Keyword(KeywordToken::Int));
+        assert_eq!(one_token(keyword_bool), Token::Keyword(KeywordToken::Bool));
         assert_eq!(one_token(keyword_float), Token::Keyword(KeywordToken::Float));
         assert_eq!(one_token(keyword_string), Token::Keyword(KeywordToken::String));
-        assert_eq!(one_token(keyword_and), Token::Keyword(KeywordToken::And));
-        assert_eq!(one_token(keyword_or), Token::Keyword(KeywordToken::Or));
-        assert_eq!(one_token(keyword_not), Token::Keyword(KeywordToken::Not));
         assert_eq!(one_token(symbol_lbrace), Token::Symbol(SymbolToken::LeftBrace));
         assert_eq!(one_token(symbol_rbrace), Token::Symbol(SymbolToken::RightBrace));
         assert_eq!(one_token(symbol_lparant), Token::Symbol(SymbolToken::LeftParenthesis));
@@ -356,20 +299,12 @@ mod tests {
         assert_eq!(one_token(symbol_rbracket), Token::Symbol(SymbolToken::RightBracket));
         assert_eq!(one_token(symbol_langle), Token::Symbol(SymbolToken::LeftAngle));
         assert_eq!(one_token(symbol_rangle), Token::Symbol(SymbolToken::RightAngle));
-        assert_eq!(one_token(symbol_plus), Token::Symbol(SymbolToken::Plus));
-        assert_eq!(one_token(symbol_minus), Token::Symbol(SymbolToken::Minus));
-        assert_eq!(one_token(symbol_asterik), Token::Symbol(SymbolToken::Asterik));
-        assert_eq!(one_token(symbol_slash), Token::Symbol(SymbolToken::Slash));
         assert_eq!(one_token(symbol_rightarrow), Token::Symbol(SymbolToken::RightArrow));
         assert_eq!(one_token(symbol_assign), Token::Symbol(SymbolToken::Assign));
         assert_eq!(one_token(symbol_colon), Token::Symbol(SymbolToken::Colon));
         assert_eq!(one_token(symbol_comma), Token::Symbol(SymbolToken::Comma));
         assert_eq!(one_token(symbol_semicolon), Token::Symbol(SymbolToken::Semicolon));
         assert_eq!(one_token(symbol_period), Token::Symbol(SymbolToken::Period));
-        assert_eq!(one_token(symbol_equal), Token::Symbol(SymbolToken::Equal));
-        assert_eq!(one_token(symbol_unequal), Token::Symbol(SymbolToken::Unequal));
-        assert_eq!(one_token(symbol_lessequal), Token::Symbol(SymbolToken::LessEqual));
-        assert_eq!(one_token(symbol_greaterequal), Token::Symbol(SymbolToken::GreaterEqual));
         assert_eq!(one_token(identifier), Token::Identifier("foo".to_owned()));
     }
 
@@ -389,45 +324,6 @@ mod tests {
         assert_eq!(one_token(identifier_4), Token::Identifier(identifier_4.to_owned()));
         assert_eq!(one_token(identifier_5), Token::Identifier(identifier_5.to_owned()));
         assert_eq!(one_token(identifier_6), Token::Identifier(identifier_6.to_owned()));
-    }
-
-
-    #[test]
-    fn test_difficult_symbols() {
-        let symbols_1 = "..:,.";
-        let symbols_2 = "=====";
-        let symbols_3 = "<-->>";
-        let symbols_4 = "= =- >";
-
-        let expected_tokens_1 = vec!(
-            PositionalToken { token: Token::Symbol(SymbolToken::Period), line: 0, column: 0 },
-            PositionalToken { token: Token::Symbol(SymbolToken::Period), line: 0, column: 1 },
-            PositionalToken { token: Token::Symbol(SymbolToken::Colon), line: 0, column: 2 },
-            PositionalToken { token: Token::Symbol(SymbolToken::Comma), line: 0, column: 3 },
-            PositionalToken { token: Token::Symbol(SymbolToken::Period), line: 0, column: 4 },
-        );
-        let expected_tokens_2 = vec!(
-            PositionalToken { token: Token::Symbol(SymbolToken::Equal), line: 0, column: 0 },
-            PositionalToken { token: Token::Symbol(SymbolToken::Equal), line: 0, column: 2 },
-            PositionalToken { token: Token::Symbol(SymbolToken::Assign), line: 0, column: 4 },
-        );
-        let expected_tokens_3 = vec!(
-            PositionalToken { token: Token::Symbol(SymbolToken::LeftAngle), line: 0, column: 0 },
-            PositionalToken { token: Token::Symbol(SymbolToken::Minus), line: 0, column: 1 },
-            PositionalToken { token: Token::Symbol(SymbolToken::RightArrow), line: 0, column: 2 },
-            PositionalToken { token: Token::Symbol(SymbolToken::RightAngle), line: 0, column: 4 },
-        );
-        let expected_tokens_4 = vec!(
-            PositionalToken { token: Token::Symbol(SymbolToken::Assign), line: 0, column: 0 },
-            PositionalToken { token: Token::Symbol(SymbolToken::Assign), line: 0, column: 2 },
-            PositionalToken { token: Token::Symbol(SymbolToken::Minus), line: 0, column: 3 },
-            PositionalToken { token: Token::Symbol(SymbolToken::RightAngle), line: 0, column: 5 },
-        );
-
-        assert_eq!(tokenize(symbols_1).unwrap(), expected_tokens_1);
-        assert_eq!(tokenize(symbols_2).unwrap(), expected_tokens_2);
-        assert_eq!(tokenize(symbols_3).unwrap(), expected_tokens_3);
-        assert_eq!(tokenize(symbols_4).unwrap(), expected_tokens_4);
     }
 
 
