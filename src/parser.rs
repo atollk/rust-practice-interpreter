@@ -28,7 +28,7 @@ pub mod parsetree {
     fn parse_statement_block(tokens: &[tokens::PositionalToken]) -> Result<(Vec<Statement>, usize), ParseError> {
         let size = find_matching_brace(tokens)
             .ok_or(
-                ParseError { line: tokens.last()?.line, column: tokens.last()?.column }
+                ParseError { line: tokens.last().unwrap().line, column: tokens.last().unwrap().column }
             )?;
         Ok((parse_kleene_exactly(&tokens[1..size])?, size + 1))
     }
@@ -48,7 +48,7 @@ pub mod parsetree {
         fn parse_from(tokens: &[tokens::PositionalToken]) -> Result<(T, usize), ParseError>;
 
         fn parse_from_exactly(tokens: &[tokens::PositionalToken]) -> Result<T, ParseError> {
-            let (node, size) = self::parse_from(tokens)?;
+            let (node, size) = Self::parse_from(tokens)?;
             if size == tokens.len() {
                 Ok(node)
             } else {
@@ -68,7 +68,7 @@ pub mod parsetree {
             let mut program = Program { structs: Vec::new(), functions: Vec::new() };
             let mut token_index = 0;
             while token_index < tokens.len() {
-                let token = tokens[token_index];
+                let token = &tokens[token_index];
                 if let tokens::Token::Keyword(tokens::KeywordToken::Fn) = token.token {
                     let (f, size) = Function::parse_from(&tokens[token_index..])?;
                     program.functions.push(f);
@@ -104,7 +104,7 @@ pub mod parsetree {
             } else {
                 return Err(ParseError::from_token(&tokens[0]));
             }
-            if get_token(tokens, 1)? != tokens::Token::Symbol(tokens::SymbolToken::Colon) {
+            if *get_token(tokens, 1)? != tokens::Token::Symbol(tokens::SymbolToken::Colon) {
                 return Err(ParseError::from_token(&tokens[1]));
             }
             match get_token(tokens, 2)? {
@@ -127,8 +127,10 @@ pub mod parsetree {
         String,
     }
 
-    impl Node<Type> for Type {
-        fn parse_from(token: &tokens::PositionalToken) -> Result<Type, ParseError> {}
+    impl Type {
+        fn parse_from(token: &tokens::PositionalToken) -> Result<Type, ParseError> {
+            Ok(Type::Bool)
+        }
     }
 
     struct Struct {
@@ -141,10 +143,10 @@ pub mod parsetree {
         fn parse_from(tokens: &[tokens::PositionalToken]) -> Result<(Struct, usize), ParseError> {
             // struct name {
             let name = {
-                if get_token(tokens, 0)? != tokens::Token::Keyword(tokens::KeywordToken::Struct) {
+                if *get_token(tokens, 0)? != tokens::Token::Keyword(tokens::KeywordToken::Struct) {
                     return Err(ParseError::from_token(&tokens[0]));
                 }
-                if get_token(tokens, 2)? != tokens::Token::Symbol(tokens::SymbolToken::LeftBrace) {
+                if *get_token(tokens, 2)? != tokens::Token::Symbol(tokens::SymbolToken::LeftBrace) {
                     return Err(ParseError::from_token(&tokens[2]));
                 }
                 if let tokens::Token::Identifier(name) = get_token(tokens, 1)? {
@@ -158,8 +160,8 @@ pub mod parsetree {
             let mut index = 3;
             let fields = {
                 let mut fields = Vec::new();
-                while get_token(tokens, index)? != tokens::Token::Symbol(tokens::SymbolToken::RightBrace) {
-                    let (field_var, size) = Variable::parse_from(&tokens[field_index..])?;
+                while *get_token(tokens, index)? != tokens::Token::Symbol(tokens::SymbolToken::RightBrace) {
+                    let (field_var, size) = Variable::parse_from(&tokens[index..])?;
                     fields.push(field_var);
                     index += size;
                 }
@@ -188,10 +190,10 @@ pub mod parsetree {
 
             // fn name(
             let name = {
-                if get_token(tokens, 0)? != tokens::Token::Keyword(tokens::KeywordToken::Fn) {
+                if *get_token(tokens, 0)? != tokens::Token::Keyword(tokens::KeywordToken::Fn) {
                     return Err(ParseError::from_token(&tokens[0]));
                 }
-                if get_token(tokens, 2)? != tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis) {
+                if *get_token(tokens, 2)? != tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis) {
                     return Err(ParseError::from_token(&tokens[2]));
                 }
                 if let tokens::Token::Identifier(name) = get_token(tokens, 1)? {
@@ -206,9 +208,8 @@ pub mod parsetree {
             let parameters = {
                 let (parameters, parameters_size) =
                     Function::parse_parameters(&tokens[index..])?;
-                func.parameters = parameters;
                 index += parameters_size - 1;
-                if get_token(tokens, index)? != tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis) {
+                if *get_token(tokens, index)? != tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis) {
                     return Err(ParseError::from_token(&tokens[index]));
                 }
                 index += 1;
@@ -216,8 +217,8 @@ pub mod parsetree {
             };
 
             // -> returntype
-            let returntype = {
-                if get_token(tokens, index)? == tokens::Token::Symbol(tokens::SymbolToken::RightArrow) {
+            let return_type = {
+                if *get_token(tokens, index)? == tokens::Token::Symbol(tokens::SymbolToken::RightArrow) {
                     let ret = Type::parse_from(get_postoken(tokens, index + 1)?)?;
                     index += 2;
                     Some(ret)
@@ -228,7 +229,7 @@ pub mod parsetree {
 
             // with localvar*
             let local_variables = {
-                if get_token(tokens, index)? == tokens::Token::Keyword(tokens::KeywordToken::With) {
+                if *get_token(tokens, index)? == tokens::Token::Keyword(tokens::KeywordToken::With) {
                     index += 1;
                     let (local_vars, size) = Function::parse_with(&tokens[index..])?;
                     index += size;
@@ -240,7 +241,7 @@ pub mod parsetree {
 
             // { body }
             let body = {
-                let (body, size) = parse_statement_block(&tokens[index..]);
+                let (body, size) = parse_statement_block(&tokens[index..])?;
                 index += size;
                 body
             };
@@ -263,10 +264,12 @@ pub mod parsetree {
     impl Function {
         fn parse_parameters(tokens: &[tokens::PositionalToken]) -> Result<(Vec<Variable>, usize), ParseError> {
             // TODO
+            return Ok((Vec::new(), 0));
         }
 
         fn parse_with(tokens: &[tokens::PositionalToken]) -> Result<(Vec<Variable>, usize), ParseError> {
             // TODO
+            return Ok((Vec::new(), 0));
         }
     }
 
@@ -286,18 +289,18 @@ pub mod parsetree {
                 }
                 tokens::Token::Keyword(tokens::KeywordToken::While) => {
                     let (statement, size) = WhileStatement::parse_from(tokens)?;
-                    Ok((Statement::WhileStatement(statement), size))
+                    Ok((Statement::While(statement), size))
                 }
                 tokens::Token::Identifier(_) => {
-                    match get_token(tokens, 1) {
-                        Some(tokens::Token::Symbol(tokens::SymbolToken::Assign)) => {
+                    match *get_token(tokens, 1)? {
+                        tokens::Token::Symbol(tokens::SymbolToken::Assign) => {
                             let (statement, size) = AssignStatement::parse_from(tokens)?;
                             Ok((Statement::Assign(statement), size))
-                        }
+                        },
                         _ => {
                             let (statement, size) = Expression::parse_from(tokens)?;
                             Ok((Statement::Expression(statement), size))
-                        }
+                        },
                     }
                 }
                 _ => {
@@ -320,7 +323,7 @@ pub mod parsetree {
             let mut index = 0;
 
             // if cond
-            if get_token(tokens, 0)? != tokens::Token::Keyword(tokens::KeywordToken::If) {
+            if *get_token(tokens, 0)? != tokens::Token::Keyword(tokens::KeywordToken::If) {
                 return Err(ParseError::from_token(&tokens[0]));
             }
             let condition = {
@@ -331,14 +334,14 @@ pub mod parsetree {
 
             // { .. }
             let if_block = {
-                let (if_block, size) = parse_statement_block(&tokens[index..]);
+                let (if_block, size) = parse_statement_block(&tokens[index..])?;
                 index += size;
                 if_block
             };
 
             // else { .. }
             let else_block = {
-                if get_token(tokens, index)? == tokens::Token::Keyword(tokens::KeywordToken::Else) {
+                if *get_token(tokens, index)? == tokens::Token::Keyword(tokens::KeywordToken::Else) {
                     index += 1;
                     let (else_block, size) = parse_statement_block(&tokens[index..])?;
                     index += size;
@@ -373,7 +376,7 @@ pub mod parsetree {
             let mut index = 0;
 
             // while cond
-            if get_token(tokens, 0)? != tokens::Token::Keyword(tokens::KeywordToken::While) {
+            if *get_token(tokens, 0)? != tokens::Token::Keyword(tokens::KeywordToken::While) {
                 return Err(ParseError::from_token(&tokens[0]));
             }
             let condition = {
@@ -384,7 +387,7 @@ pub mod parsetree {
 
             // { .. }
             let body = {
-                let (body, size) = parse_statement_block(&tokens[index..]);
+                let (body, size) = parse_statement_block(&tokens[index..])?;
                 index += size;
                 body
             };
@@ -414,16 +417,16 @@ pub mod parsetree {
             let target = if let tokens::Token::Identifier(target) = get_token(tokens, 0)? {
                 target.clone()
             } else {
-                return Err(ParseError::from_token(&token[0]));
+                return Err(ParseError::from_token(&tokens[0]));
             };
-            if get_token(tokens, 1) != tokens::Token::Symbol(tokens::SymbolToken::Assign) {
-                return Err(ParseError::from_token(&token[1]));
+            if *get_token(tokens, 1)? != tokens::Token::Symbol(tokens::SymbolToken::Assign) {
+                return Err(ParseError::from_token(&tokens[1]));
             }
 
             // expression ;
             let (value, value_size) = Expression::parse_from(&tokens[2..])?;
-            if get_token(tokens, 2 + value_size) != tokens::Token::Symbol(tokens::SymbolToken::Semicolon) {
-                return Err(ParseError::from_token(&token[2 + value_size]));
+            if *get_token(tokens, 2 + value_size)? != tokens::Token::Symbol(tokens::SymbolToken::Semicolon) {
+                return Err(ParseError::from_token(&tokens[2 + value_size]));
             }
 
             Ok(
@@ -447,6 +450,7 @@ pub mod parsetree {
     impl Node<Expression> for Expression {
         fn parse_from(tokens: &[tokens::PositionalToken]) -> Result<(Expression, usize), ParseError> {
             // TODO
+            return Ok((Expression {src: "a".to_owned()}, 1));
         }
     }
 }
