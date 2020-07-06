@@ -144,6 +144,7 @@ mod matcher {
             "else" => super::tokens::Token::Keyword(super::tokens::KeywordToken::Else),
             "while" => super::tokens::Token::Keyword(super::tokens::KeywordToken::While),
             "return" => super::tokens::Token::Keyword(super::tokens::KeywordToken::Return),
+            "bool" => super::tokens::Token::Keyword(super::tokens::KeywordToken::Bool),
             "int" => super::tokens::Token::Keyword(super::tokens::KeywordToken::Int),
             "float" => super::tokens::Token::Keyword(super::tokens::KeywordToken::Float),
             "string" => super::tokens::Token::Keyword(super::tokens::KeywordToken::String),
@@ -238,7 +239,7 @@ mod tests {
 
     fn one_token(input: &str) -> Token {
         let mut index = 0;
-        let mut token = tokenize_once(input, &mut index).unwrap();
+        let token = tokenize_once(input, &mut index).unwrap();
         assert_eq!(index, input.len());
         token.token
     }

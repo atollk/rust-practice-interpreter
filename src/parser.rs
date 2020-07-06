@@ -1,7 +1,8 @@
 pub mod parsetree {
     use crate::tokenize::tokens;
 
-    struct ParseError {
+    #[derive(Debug)]
+    pub struct ParseError {
         line: usize,
         column: usize,
     }
@@ -44,7 +45,30 @@ pub mod parsetree {
         Ok(result)
     }
 
-    trait Node<T> {
+    fn parse_join_exactly<T: Node<T>>(tokens: &[tokens::PositionalToken], separator: tokens::Token) -> Result<Vec<T>, ParseError> {
+        let mut result = Vec::new();
+        let mut index = 0;
+
+        {
+            let (node, size) = T::parse_from(tokens)?;
+            result.push(node);
+            index += size;
+        }
+
+        while index < tokens.len() {
+            if *get_token(tokens, index)? != separator {
+                return Err(ParseError::from_token(&tokens[index]));
+            }
+            index += 1;
+
+            let (node, size) = T::parse_from(tokens)?;
+            result.push(node);
+            index += size;
+        }
+        Ok(result)
+    }
+
+    pub trait Node<T> {
         fn parse_from(tokens: &[tokens::PositionalToken]) -> Result<(T, usize), ParseError>;
 
         fn parse_from_exactly(tokens: &[tokens::PositionalToken]) -> Result<T, ParseError> {
@@ -58,9 +82,12 @@ pub mod parsetree {
         }
     }
 
-    struct Program {
-        structs: Vec<Struct>,
-        functions: Vec<Function>,
+
+    #[derive(Debug)]
+    #[derive(std::cmp::PartialEq)]
+    pub struct Program {
+        pub structs: Vec<Struct>,
+        pub functions: Vec<Function>,
     }
 
     impl Node<Program> for Program {
@@ -85,10 +112,13 @@ pub mod parsetree {
         }
     }
 
-    struct Variable {
-        name: String,
-        typ: Type,
-        position: (usize, usize),
+
+    #[derive(Debug)]
+    #[derive(std::cmp::PartialEq)]
+    pub struct Variable {
+        pub name: String,
+        pub typ: Type,
+        pub position: (usize, usize),
     }
 
     impl Node<Variable> for Variable {
@@ -120,7 +150,9 @@ pub mod parsetree {
     }
 
 
-    enum Type {
+    #[derive(Debug)]
+    #[derive(std::cmp::PartialEq)]
+    pub enum Type {
         Bool,
         Integer,
         Float,
@@ -129,14 +161,23 @@ pub mod parsetree {
 
     impl Type {
         fn parse_from(token: &tokens::PositionalToken) -> Result<Type, ParseError> {
-            Ok(Type::Bool)
+            match token.token {
+                tokens::Token::Keyword(tokens::KeywordToken::Bool) => Ok(Type::Bool),
+                tokens::Token::Keyword(tokens::KeywordToken::Int) => Ok(Type::Integer),
+                tokens::Token::Keyword(tokens::KeywordToken::Float) => Ok(Type::Float),
+                tokens::Token::Keyword(tokens::KeywordToken::String) => Ok(Type::String),
+                _ => Err(ParseError::from_token(token))
+            }
         }
     }
 
-    struct Struct {
-        name: String,
-        fields: Vec<Variable>,
-        position: (usize, usize),
+
+    #[derive(Debug)]
+    #[derive(std::cmp::PartialEq)]
+    pub struct Struct {
+        pub name: String,
+        pub fields: Vec<Variable>,
+        pub position: (usize, usize),
     }
 
     impl Node<Struct> for Struct {
@@ -175,18 +216,21 @@ pub mod parsetree {
         }
     }
 
-    struct Function {
-        name: String,
-        parameters: Vec<Variable>,
-        return_type: Option<Type>,
-        local_variables: Vec<Variable>,
-        body: Vec<Statement>,
-        position: (usize, usize),
+
+    #[derive(Debug)]
+    #[derive(std::cmp::PartialEq)]
+    pub struct Function {
+        pub name: String,
+        pub parameters: Vec<Variable>,
+        pub return_type: Option<Type>,
+        pub local_variables: Vec<Variable>,
+        pub body: Vec<Statement>,
+        pub position: (usize, usize),
     }
 
     impl Node<Function> for Function {
         fn parse_from(tokens: &[tokens::PositionalToken]) -> Result<(Function, usize), ParseError> {
-            let mut index = 0;
+            let mut index;
 
             // fn name(
             let name = {
@@ -263,17 +307,34 @@ pub mod parsetree {
 
     impl Function {
         fn parse_parameters(tokens: &[tokens::PositionalToken]) -> Result<(Vec<Variable>, usize), ParseError> {
-            // TODO
-            return Ok((Vec::new(), 0));
+            let end_index = tokens
+                .iter()
+                .position(|token| token.token == tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis))
+                .ok_or(ParseError { line: tokens.last().unwrap().line, column: tokens.last().unwrap().column })?;
+            let parameters = parse_join_exactly::<Variable>(
+                &tokens[..end_index],
+                tokens::Token::Symbol(tokens::SymbolToken::Comma),
+            )?;
+            Ok((parameters, end_index))
         }
 
         fn parse_with(tokens: &[tokens::PositionalToken]) -> Result<(Vec<Variable>, usize), ParseError> {
-            // TODO
-            return Ok((Vec::new(), 0));
+            let end_index = tokens
+                .iter()
+                .position(|token| token.token == tokens::Token::Symbol(tokens::SymbolToken::LeftBrace))
+                .ok_or(ParseError { line: tokens.last().unwrap().line, column: tokens.last().unwrap().column })?;
+            let variables = parse_join_exactly::<Variable>(
+                &tokens[..end_index],
+                tokens::Token::Symbol(tokens::SymbolToken::Comma),
+            )?;
+            Ok((variables, end_index))
         }
     }
 
-    enum Statement {
+
+    #[derive(Debug)]
+    #[derive(std::cmp::PartialEq)]
+    pub enum Statement {
         IfElse(IfElseStatement),
         While(WhileStatement),
         Assign(AssignStatement),
@@ -296,11 +357,11 @@ pub mod parsetree {
                         tokens::Token::Symbol(tokens::SymbolToken::Assign) => {
                             let (statement, size) = AssignStatement::parse_from(tokens)?;
                             Ok((Statement::Assign(statement), size))
-                        },
+                        }
                         _ => {
                             let (statement, size) = Expression::parse_from(tokens)?;
                             Ok((Statement::Expression(statement), size))
-                        },
+                        }
                     }
                 }
                 _ => {
@@ -311,16 +372,19 @@ pub mod parsetree {
         }
     }
 
-    struct IfElseStatement {
-        condition: Expression,
-        if_block: Vec<Statement>,
-        else_block: Vec<Statement>,
-        position: (usize, usize),
+
+    #[derive(Debug)]
+    #[derive(std::cmp::PartialEq)]
+    pub struct IfElseStatement {
+        pub condition: Expression,
+        pub if_block: Vec<Statement>,
+        pub else_block: Vec<Statement>,
+        pub position: (usize, usize),
     }
 
     impl Node<IfElseStatement> for IfElseStatement {
         fn parse_from(tokens: &[tokens::PositionalToken]) -> Result<(IfElseStatement, usize), ParseError> {
-            let mut index = 0;
+            let mut index;
 
             // if cond
             if *get_token(tokens, 0)? != tokens::Token::Keyword(tokens::KeywordToken::If) {
@@ -365,15 +429,18 @@ pub mod parsetree {
         }
     }
 
-    struct WhileStatement {
-        condition: Expression,
-        body: Vec<Statement>,
-        position: (usize, usize),
+
+    #[derive(Debug)]
+    #[derive(std::cmp::PartialEq)]
+    pub struct WhileStatement {
+        pub condition: Expression,
+        pub body: Vec<Statement>,
+        pub position: (usize, usize),
     }
 
     impl Node<WhileStatement> for WhileStatement {
         fn parse_from(tokens: &[tokens::PositionalToken]) -> Result<(WhileStatement, usize), ParseError> {
-            let mut index = 0;
+            let mut index;
 
             // while cond
             if *get_token(tokens, 0)? != tokens::Token::Keyword(tokens::KeywordToken::While) {
@@ -405,10 +472,13 @@ pub mod parsetree {
         }
     }
 
-    struct AssignStatement {
-        target: String,
-        value: Expression,
-        position: (usize, usize),
+
+    #[derive(Debug)]
+    #[derive(std::cmp::PartialEq)]
+    pub struct AssignStatement {
+        pub target: String,
+        pub value: Expression,
+        pub position: (usize, usize),
     }
 
     impl Node<AssignStatement> for AssignStatement {
@@ -442,16 +512,242 @@ pub mod parsetree {
         }
     }
 
-    struct Expression {
-        src: String
+
+    #[derive(Debug)]
+    #[derive(std::cmp::PartialEq)]
+    pub struct Expression {
+        pub value: ExpressionValue,
+        pub position: (usize, usize),
+    }
+
+
+    #[derive(Debug)]
+    #[derive(std::cmp::PartialEq)]
+    pub enum ExpressionValue {
+        Literal(LiteralExpression),
+        Atom(AtomExpression),
+        Call(CallExpression),
     }
 
 
     impl Node<Expression> for Expression {
         fn parse_from(tokens: &[tokens::PositionalToken]) -> Result<(Expression, usize), ParseError> {
-            // TODO
-            return Ok((Expression {src: "a".to_owned()}, 1));
+            // Literal
+            if let tokens::Token::Literal(_) = &get_token(tokens, 0)? {
+                let (expr, size) = LiteralExpression::parse_from(tokens)?;
+                return Ok(
+                    (
+                        Expression { value: ExpressionValue::Literal(expr), position: (tokens[0].line, tokens[1].column) },
+                        size
+                    )
+                );
+            }
+
+            if let tokens::Token::Identifier(_) = &get_token(tokens, 0)? {
+                if let tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis) = &get_token(tokens, 1)? {
+                    let (expr, size) = CallExpression::parse_from(tokens)?;
+                    return Ok(
+                        (
+                            Expression { value: ExpressionValue::Call(expr), position: (tokens[0].line, tokens[1].column) },
+                            size
+                        )
+                    );
+                } else {
+                    let (expr, size) = AtomExpression::parse_from(tokens)?;
+                    return Ok(
+                        (
+                            Expression { value: ExpressionValue::Atom(expr), position: (tokens[0].line, tokens[1].column) },
+                            size
+                        )
+                    );
+                }
+            } else {
+                Err(ParseError::from_token(&tokens[0]))
+            }
+        }
+    }
+
+
+    #[derive(Debug)]
+    #[derive(std::cmp::PartialEq)]
+    pub enum LiteralExpression {
+        Bool(bool),
+        Int(i32),
+        Float(f64),
+        String(String),
+    }
+
+    impl Node<LiteralExpression> for LiteralExpression {
+        fn parse_from(tokens: &[tokens::PositionalToken]) -> Result<(LiteralExpression, usize), ParseError> {
+            if let tokens::Token::Literal(lit) = get_token(tokens, 0)? {
+                match lit {
+                    tokens::LiteralToken::Bool(b) => Ok((LiteralExpression::Bool(*b), 1)),
+                    tokens::LiteralToken::Integer(i) => Ok((LiteralExpression::Int(*i), 1)),
+                    tokens::LiteralToken::Float(f) => Ok((LiteralExpression::Float(*f), 1)),
+                    tokens::LiteralToken::String(s) => Ok((LiteralExpression::String(s.clone()), 1)),
+                }
+            } else {
+                Err(ParseError::from_token(&tokens[0]))
+            }
+        }
+    }
+
+    #[derive(Debug)]
+    #[derive(std::cmp::PartialEq)]
+    pub struct AtomExpression {
+        pub var_name: String,
+        pub fields: Vec<String>,
+    }
+
+    impl Node<AtomExpression> for AtomExpression {
+        fn parse_from(tokens: &[tokens::PositionalToken]) -> Result<(AtomExpression, usize), ParseError> {
+            let mut index = 0;
+
+            // var
+            let var_name = {
+                if let tokens::Token::Identifier(name) = get_token(tokens, 0)? {
+                    index += 1;
+                    name.clone()
+                } else {
+                    return Err(ParseError::from_token(&tokens[0]));
+                }
+            };
+
+            // (.field)*
+            let fields = {
+                let mut fields = Vec::new();
+                while let Ok(tokens::Token::Symbol(tokens::SymbolToken::Period)) = get_token(tokens, index) {
+                    index += 1;
+                    if let tokens::Token::Identifier(name) = get_token(tokens, index)? {
+                        index += 1;
+                        fields.push(name.clone());
+                    } else {
+                        return Err(ParseError::from_token(&tokens[index]));
+                    }
+                }
+                fields
+            };
+
+            return Ok((AtomExpression { var_name, fields }, index));
+        }
+    }
+
+    #[derive(Debug)]
+    #[derive(std::cmp::PartialEq)]
+    pub struct CallExpression {
+        pub func_name: String,
+        pub args: Vec<Expression>,
+        pub fields: Vec<String>,
+    }
+
+    impl Node<CallExpression> for CallExpression {
+        fn parse_from(tokens: &[tokens::PositionalToken]) -> Result<(CallExpression, usize), ParseError> {
+            let mut index = 0;
+
+            // fn
+            let func_name = {
+                if let tokens::Token::Identifier(name) = get_token(tokens, 0)? {
+                    index += 1;
+                    name.clone()
+                } else {
+                    return Err(ParseError::from_token(&tokens[0]));
+                }
+            };
+
+            // (arg? (, args)*)
+            if *get_token(tokens, index)? != tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis) {
+                return Err(ParseError::from_token(&tokens[index]));
+            }
+            let args = {
+                let mut args = Vec::new();
+                while let Ok((arg, size)) = Expression::parse_from(&tokens[index..]) {
+                    args.push(arg);
+                    index += size;
+                }
+                args
+            };
+            if *get_token(tokens, index)? != tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis) {
+                return Err(ParseError::from_token(&tokens[index]));
+            }
+
+            // (.field)*
+            let fields = {
+                let mut fields = Vec::new();
+                while *get_token(tokens, index)? == tokens::Token::Symbol(tokens::SymbolToken::Period) {
+                    index += 1;
+                    if let tokens::Token::Identifier(name) = get_token(tokens, index)? {
+                        index += 1;
+                        fields.push(name.clone());
+                    } else {
+                        return Err(ParseError::from_token(&tokens[index]));
+                    }
+                }
+                fields
+            };
+
+            Ok((CallExpression { func_name, args, fields }, index))
         }
     }
 }
 
+
+#[cfg(test)]
+mod tests {
+    use crate::tokenize::tokens;
+    use super::parsetree::*;
+
+    fn give_tokens_positions(tokens: Vec<tokens::Token>) -> Vec<tokens::PositionalToken> {
+        tokens
+            .into_iter()
+            .enumerate()
+            .map(|(column, token)| tokens::PositionalToken { token, line: 0, column })
+            .collect()
+    }
+
+    #[test]
+    fn test_atom_expr() {
+        let tokens1 = vec!(
+            tokens::Token::Identifier("foo".to_owned())
+        );
+        let tokens2 = vec!(
+            tokens::Token::Identifier("foo".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Period),
+            tokens::Token::Identifier("bar".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Period),
+            tokens::Token::Identifier("baz".to_owned())
+        );
+        let tokens3 = vec!(
+            tokens::Token::Identifier("foo".to_owned()),
+            tokens::Token::Identifier("bar".to_owned())
+        );
+        let tokens4 = vec!(
+            tokens::Token::Identifier("foo".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Period),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
+            tokens::Token::Identifier("baz".to_owned())
+        );
+
+        let expr1 = AtomExpression {
+            var_name: "foo".to_owned(),
+            fields: Vec::new(),
+        };
+        let expr2 = AtomExpression {
+            var_name: "foo".to_owned(),
+            fields: vec!("bar".to_owned(), "baz".to_owned()),
+        };
+        let expr3 = AtomExpression {
+            var_name: "foo".to_owned(),
+            fields: Vec::new(),
+        };
+
+        let result1 = AtomExpression::parse_from(&give_tokens_positions(tokens1)).unwrap();
+        let result2 = AtomExpression::parse_from(&give_tokens_positions(tokens2)).unwrap();
+        let result3 = AtomExpression::parse_from(&give_tokens_positions(tokens3)).unwrap();
+        let result4 = AtomExpression::parse_from(&give_tokens_positions(tokens4));
+
+        assert_eq!(result1, (expr1, 1));
+        assert_eq!(result2, (expr2, 5));
+        assert_eq!(result3, (expr3, 1));
+        assert!(result4.is_err());
+    }
+}

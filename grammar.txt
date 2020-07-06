@@ -16,9 +16,9 @@ if: "if" expression "{" statement* "}"
 ifelse: "if" expression "{" statement* "}" else "{" statement "}"
 while: "while" expression "{" statement* "}"
 simple_stat: assignment | expression ";"
-assignment: IDENTIFIER "=" expression
+assignment: varexpr "=" expression
 
-expression: funcexpr | strexpr | atomexpr
-funcexpr: IDENTIFIER "(" expression? ("," expression)* ")"
-strexpr: expression "." IDENTIFIER
-atomexpr: IDENTIFIER | INT_LITERAL | FLOAT_LITERAL | STRING_LITERAL | BOOL_LITERAL
+expression: litexpr | varexpr | callexpr
+callexpr: IDENTIFIER "(" expression? ("," expression)* ")" ("." IDENTIFIER)*
+varexpr: IDENTIFIER ("." IDENTIFIER)*
+litexpr: INT_LITERAL | FLOAT_LITERAL | STRING_LITERAL | BOOL_LITERAL
