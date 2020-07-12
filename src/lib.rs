@@ -4,6 +4,8 @@ extern crate regex;
 
 mod tokenize;
 pub mod parse;
+mod execute;
+
 
 #[derive(Debug)]
 pub struct ParseError {

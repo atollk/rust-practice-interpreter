@@ -104,6 +104,7 @@ pub mod parsetree {
 
     #[derive(Debug)]
     #[derive(std::cmp::PartialEq)]
+    #[derive(Clone)]
     pub struct Program {
         pub structs: Vec<Struct>,
         pub functions: Vec<Function>,
@@ -134,6 +135,7 @@ pub mod parsetree {
 
     #[derive(Debug)]
     #[derive(std::cmp::PartialEq)]
+    #[derive(Clone)]
     pub struct Variable {
         pub name: String,
         pub typ: Type,
@@ -174,6 +176,7 @@ pub mod parsetree {
 
     #[derive(Debug)]
     #[derive(std::cmp::PartialEq)]
+    #[derive(Clone)]
     pub enum Type {
         Bool,
         Integer,
@@ -197,6 +200,7 @@ pub mod parsetree {
 
     #[derive(Debug)]
     #[derive(std::cmp::PartialEq)]
+    #[derive(Clone)]
     pub struct Struct {
         pub name: String,
         pub fields: Vec<Variable>,
@@ -243,6 +247,7 @@ pub mod parsetree {
 
     #[derive(Debug)]
     #[derive(std::cmp::PartialEq)]
+    #[derive(Clone)]
     pub struct Function {
         pub name: String,
         pub parameters: Vec<Variable>,
@@ -358,6 +363,7 @@ pub mod parsetree {
 
     #[derive(Debug)]
     #[derive(std::cmp::PartialEq)]
+    #[derive(Clone)]
     pub enum Statement {
         IfElse(IfElseStatement),
         While(WhileStatement),
@@ -405,6 +411,7 @@ pub mod parsetree {
 
     #[derive(Debug)]
     #[derive(std::cmp::PartialEq)]
+    #[derive(Clone)]
     pub struct IfElseStatement {
         pub condition: Expression,
         pub if_block: Vec<Statement>,
@@ -463,6 +470,7 @@ pub mod parsetree {
 
     #[derive(Debug)]
     #[derive(std::cmp::PartialEq)]
+    #[derive(Clone)]
     pub struct WhileStatement {
         pub condition: Expression,
         pub body: Vec<Statement>,
@@ -506,6 +514,7 @@ pub mod parsetree {
 
     #[derive(Debug)]
     #[derive(std::cmp::PartialEq)]
+    #[derive(Clone)]
     pub struct ReturnStatement {
         pub expression: Option<Expression>,
         pub position: (usize, usize),
@@ -535,6 +544,7 @@ pub mod parsetree {
 
     #[derive(Debug)]
     #[derive(std::cmp::PartialEq)]
+    #[derive(Clone)]
     pub struct AssignStatement {
         pub target: AtomExpression,
         pub value: Expression,
@@ -587,6 +597,7 @@ pub mod parsetree {
 
     #[derive(Debug)]
     #[derive(std::cmp::PartialEq)]
+    #[derive(Clone)]
     pub struct Expression {
         pub value: ExpressionValue,
         pub position: (usize, usize),
@@ -595,6 +606,7 @@ pub mod parsetree {
 
     #[derive(Debug)]
     #[derive(std::cmp::PartialEq)]
+    #[derive(Clone)]
     pub enum ExpressionValue {
         Literal(LiteralExpression),
         Atom(AtomExpression),
@@ -644,6 +656,7 @@ pub mod parsetree {
 
     #[derive(Debug)]
     #[derive(std::cmp::PartialEq)]
+    #[derive(Clone)]
     pub enum LiteralExpression {
         Bool(bool),
         Int(i32),
@@ -670,6 +683,7 @@ pub mod parsetree {
 
     #[derive(Debug)]
     #[derive(std::cmp::PartialEq)]
+    #[derive(Clone)]
     pub struct AtomExpression {
         pub var_name: String,
         pub fields: Vec<String>,
@@ -711,6 +725,7 @@ pub mod parsetree {
 
     #[derive(Debug)]
     #[derive(std::cmp::PartialEq)]
+    #[derive(Clone)]
     pub struct CallExpression {
         pub func_name: String,
         pub args: Vec<Expression>,
