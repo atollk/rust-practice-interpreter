@@ -185,8 +185,8 @@ mod matcher {
 
 #[derive(Debug)]
 pub struct TokenizeError {
-    line: usize,
-    column: usize,
+    pub line: usize,
+    pub column: usize,
 }
 
 fn index_to_lcol(text: &str, byte_index: usize) -> (usize, usize) {

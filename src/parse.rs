@@ -1,10 +1,21 @@
+pub fn parse_program(tokens: &[crate::tokenize::tokens::PositionalToken]) -> Result<parsetree::Program, parsetree::ParseError> {
+    use parsetree::Node;
+    let (prog, size) = parsetree::Program::parse_from(tokens)?;
+    if size != tokens.len() {
+        Err(parsetree::ParseError { line: tokens[size].line, column: tokens[size].column })
+    } else {
+        Ok(prog)
+    }
+}
+
+
 pub mod parsetree {
     use crate::tokenize::tokens;
 
     #[derive(Debug)]
     pub struct ParseError {
-        line: usize,
-        column: usize,
+        pub line: usize,
+        pub column: usize,
     }
 
     impl ParseError {
@@ -373,7 +384,7 @@ pub mod parsetree {
                 tokens::Token::Identifier(_) => {
                     let (expr, size) = Expression::parse_from(tokens)?;
                     if let Ok(tokens::Token::Symbol(tokens::SymbolToken::Semicolon)) = get_token(tokens, size) {
-                        Ok((Statement::Expression(expr), size+1))
+                        Ok((Statement::Expression(expr), size + 1))
                     } else {
                         let (statement, size) = AssignStatement::parse_from(tokens)?;
                         Ok((Statement::Assign(statement), size))
