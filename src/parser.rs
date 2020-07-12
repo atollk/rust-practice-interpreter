@@ -373,7 +373,7 @@ pub mod parsetree {
                 tokens::Token::Identifier(_) => {
                     let (expr, size) = Expression::parse_from(tokens)?;
                     if let Ok(tokens::Token::Symbol(tokens::SymbolToken::Semicolon)) = get_token(tokens, size) {
-                        Ok((Statement::Expression(expr), size))
+                        Ok((Statement::Expression(expr), size+1))
                     } else {
                         let (statement, size) = AssignStatement::parse_from(tokens)?;
                         Ok((Statement::Assign(statement), size))
@@ -1859,7 +1859,7 @@ mod tests {
         assert!(result8.is_err());
         assert!(result9.is_err());
 
-        assert_eq!(result1.unwrap(), (stmt1, 3));
+        assert_eq!(result1.unwrap(), (stmt1, 4));
         assert_eq!(result2.unwrap(), (stmt2, 10));
         assert_eq!(result3.unwrap(), (stmt3, 13));
         assert_eq!(result4.unwrap(), (stmt4, 13));
@@ -1992,7 +1992,7 @@ mod tests {
             return_type: None,
             local_variables: Vec::new(),
             body: Vec::new(),
-            position: (0, 0)
+            position: (0, 0),
         };
         let fn2 = Function {
             name: "foo".to_owned(),
@@ -2000,12 +2000,12 @@ mod tests {
                 Variable {
                     name: "x".to_owned(),
                     typ: Type::Integer,
-                    position: (0, 3)
+                    position: (0, 3),
                 },
                 Variable {
                     name: "y".to_owned(),
                     typ: Type::Float,
-                    position: (0, 7)
+                    position: (0, 7),
                 }
             ),
             return_type: Some(Type::String),
@@ -2034,10 +2034,10 @@ mod tests {
                         expression: Some(
                             Expression {
                                 value: ExpressionValue::Literal(LiteralExpression::String("".to_owned())),
-                                position: (0, 19)
+                                position: (0, 19),
                             }
                         ),
-                        position: (0, 18)
+                        position: (0, 18),
                     }
                 )
             ),
@@ -2051,11 +2051,11 @@ mod tests {
                 Variable {
                     name: "a".to_owned(),
                     typ: Type::Integer,
-                    position: (0, 5)
+                    position: (0, 5),
                 }
             ),
             body: Vec::new(),
-            position: (0, 0)
+            position: (0, 0),
         };
 
         let result1 = Function::parse_from(&give_tokens_positions(tokens1));
@@ -2159,6 +2159,315 @@ mod tests {
 
     #[test]
     fn test_program() {
-        // TODO
+        /*
+        struct X {
+            a: int,
+            b: float,
+            c: string
+        }
+
+        fn max(a: int, b: int) -> int {
+            if a < b {
+                return b;
+            } else {
+                return a;
+            }
+        }
+
+        fn main()
+            with x: int
+        {
+            x := max(1, 2);
+            print(a)
+        }
+        */
+        let tokens = vec!(
+            tokens::Token::Keyword(tokens::KeywordToken::Struct),
+            tokens::Token::Identifier("X".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
+            tokens::Token::Identifier("a".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Colon),
+            tokens::Token::Keyword(tokens::KeywordToken::Int),
+            tokens::Token::Symbol(tokens::SymbolToken::Comma),
+            tokens::Token::Identifier("b".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Colon),
+            tokens::Token::Keyword(tokens::KeywordToken::Float),
+            tokens::Token::Symbol(tokens::SymbolToken::Comma),
+            tokens::Token::Identifier("c".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Colon),
+            tokens::Token::Keyword(tokens::KeywordToken::String),
+            tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
+            tokens::Token::Keyword(tokens::KeywordToken::Fn),
+            tokens::Token::Identifier("max".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
+            tokens::Token::Identifier("a".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Colon),
+            tokens::Token::Keyword(tokens::KeywordToken::Int),
+            tokens::Token::Symbol(tokens::SymbolToken::Comma),
+            tokens::Token::Identifier("b".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Colon),
+            tokens::Token::Keyword(tokens::KeywordToken::Int),
+            tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis),
+            tokens::Token::Symbol(tokens::SymbolToken::RightArrow),
+            tokens::Token::Keyword(tokens::KeywordToken::Int),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
+            tokens::Token::Keyword(tokens::KeywordToken::If),
+            tokens::Token::Identifier("less".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
+            tokens::Token::Identifier("a".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Comma),
+            tokens::Token::Identifier("b".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
+            tokens::Token::Keyword(tokens::KeywordToken::Return),
+            tokens::Token::Identifier("b".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
+            tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
+            tokens::Token::Keyword(tokens::KeywordToken::Else),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
+            tokens::Token::Keyword(tokens::KeywordToken::Return),
+            tokens::Token::Identifier("a".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
+            tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
+            tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
+            tokens::Token::Keyword(tokens::KeywordToken::Fn),
+            tokens::Token::Identifier("main".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
+            tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis),
+            tokens::Token::Keyword(tokens::KeywordToken::With),
+            tokens::Token::Identifier("x".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Colon),
+            tokens::Token::Keyword(tokens::KeywordToken::Int),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
+            tokens::Token::Identifier("x".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Assign),
+            tokens::Token::Identifier("max".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
+            tokens::Token::Literal(tokens::LiteralToken::Integer(1)),
+            tokens::Token::Symbol(tokens::SymbolToken::Comma),
+            tokens::Token::Literal(tokens::LiteralToken::Integer(2)),
+            tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis),
+            tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
+            tokens::Token::Identifier("print".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
+            tokens::Token::Identifier("x".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis),
+            tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
+            tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
+        );
+
+        /*
+        struct X {
+            a: int,
+            b: float,
+            c: string
+        }
+
+        fn max(a: int, b: int) -> int {
+            if less(a, b) {
+                return b;
+            } else {
+                return a;
+            }
+        }
+
+        fn main()
+            with x: int
+        {
+            x = max(1, 2);
+            print(x);
+        }
+        */
+        let program = Program {
+            structs: vec!(
+                Struct {
+                    name: "X".to_owned(),
+                    fields: vec!(
+                        Variable {
+                            name: "a".to_owned(),
+                            typ: Type::Integer,
+                            position: (0, 3),
+                        },
+                        Variable {
+                            name: "b".to_owned(),
+                            typ: Type::Float,
+                            position: (0, 7),
+                        },
+                        Variable {
+                            name: "c".to_owned(),
+                            typ: Type::String,
+                            position: (0, 11),
+                        }
+                    ),
+                    position: (0, 0),
+                }
+            ),
+            functions: vec!(
+                Function {
+                    name: "max".to_owned(),
+                    parameters: vec!(
+                        Variable {
+                            name: "a".to_owned(),
+                            typ: Type::Integer,
+                            position: (0, 18),
+                        },
+                        Variable {
+                            name: "b".to_owned(),
+                            typ: Type::Integer,
+                            position: (0, 22),
+                        }
+                    ),
+                    return_type: Some(Type::Integer),
+                    local_variables: Vec::new(),
+                    body: vec!(
+                        Statement::IfElse(
+                            IfElseStatement {
+                                condition: Expression {
+                                    value: ExpressionValue::Call(
+                                        CallExpression {
+                                            func_name: "less".to_owned(),
+                                            args: vec!(
+                                                Expression {
+                                                    value: ExpressionValue::Atom(
+                                                        AtomExpression {
+                                                            var_name: "a".to_owned(),
+                                                            fields: Vec::new(),
+                                                        }
+                                                    ),
+                                                    position: (0, 32),
+                                                },
+                                                Expression {
+                                                    value: ExpressionValue::Atom(
+                                                        AtomExpression {
+                                                            var_name: "b".to_owned(),
+                                                            fields: Vec::new(),
+                                                        }
+                                                    ),
+                                                    position: (0, 34),
+                                                }
+                                            ),
+                                            fields: Vec::new(),
+                                        }
+                                    ),
+                                    position: (0, 30),
+                                },
+                                if_block: vec!(
+                                    Statement::Return(
+                                        ReturnStatement {
+                                            expression: Some(
+                                                Expression {
+                                                    value: ExpressionValue::Atom(
+                                                        AtomExpression {
+                                                            var_name: "b".to_owned(),
+                                                            fields: Vec::new(),
+                                                        }
+                                                    ),
+                                                    position: (0, 38),
+                                                }
+                                            ),
+                                            position: (0, 37),
+                                        }
+                                    )
+                                ),
+                                else_block: vec!(
+                                    Statement::Return(
+                                        ReturnStatement {
+                                            expression: Some(
+                                                Expression {
+                                                    value: ExpressionValue::Atom(
+                                                        AtomExpression {
+                                                            var_name: "a".to_owned(),
+                                                            fields: Vec::new(),
+                                                        }
+                                                    ),
+                                                    position: (0, 44),
+                                                }
+                                            ),
+                                            position: (0, 43),
+                                        }
+                                    )
+                                ),
+                                position: (0, 29),
+                            }
+                        )
+                    ),
+                    position: (0, 15),
+                },
+                Function {
+                    name: "main".to_owned(),
+                    parameters: Vec::new(),
+                    return_type: None,
+                    local_variables: vec!(
+                        Variable {
+                            name: "x".to_owned(),
+                            typ: Type::Integer,
+                            position: (0, 53),
+                        }
+                    ),
+                    body: vec!(
+                        Statement::Assign(
+                            AssignStatement {
+                                target: AtomExpression {
+                                    var_name: "x".to_owned(),
+                                    fields: Vec::new(),
+                                },
+                                value: Expression {
+                                    value: ExpressionValue::Call(
+                                        CallExpression {
+                                            func_name: "max".to_owned(),
+                                            args: vec!(
+                                                Expression {
+                                                    value: ExpressionValue::Literal(
+                                                        LiteralExpression::Int(1)
+                                                    ),
+                                                    position: (0, 61),
+                                                },
+                                                Expression {
+                                                    value: ExpressionValue::Literal(
+                                                        LiteralExpression::Int(2)
+                                                    ),
+                                                    position: (0, 63),
+                                                }
+                                            ),
+                                            fields: Vec::new(),
+                                        }
+                                    ),
+                                    position: (0, 59),
+                                },
+                                position: (0, 57),
+                            }
+                        ),
+                        Statement::Expression(
+                            Expression {
+                                value: ExpressionValue::Call(
+                                    CallExpression {
+                                        func_name: "print".to_owned(),
+                                        args: vec!(
+                                            Expression {
+                                                value: ExpressionValue::Atom(
+                                                    AtomExpression {
+                                                        var_name: "x".to_owned(),
+                                                        fields: Vec::new(),
+                                                    }
+                                                ),
+                                                position: (0, 68),
+                                            }
+                                        ),
+                                        fields: Vec::new(),
+                                    }
+                                ),
+                                position: (0, 66),
+                            }
+                        )
+                    ),
+                    position: (0, 48),
+                }
+            ),
+        };
+
+        let result = Program::parse_from(&give_tokens_positions(tokens));
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), (program, 72));
     }
 }

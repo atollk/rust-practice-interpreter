@@ -333,13 +333,13 @@ mod tests {
         let code =
             "
 struct X {
-    a: int;
-    b: float;
-    c: string;
+    a: int,
+    b: float,
+    c: string
 }
 
 fn max(a: int, b: int) -> int {
-    if a < b {
+    if less(a, b) {
         return b;
     } else {
         return a;
@@ -359,78 +359,82 @@ fn main()
             .map(|pt| pt.token)
             .collect();
 
-        assert_eq!(tokens.len(), 70);
+        let expected = vec!(
+            tokens::Token::Keyword(tokens::KeywordToken::Struct),
+            tokens::Token::Identifier("X".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
+            tokens::Token::Identifier("a".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Colon),
+            tokens::Token::Keyword(tokens::KeywordToken::Int),
+            tokens::Token::Symbol(tokens::SymbolToken::Comma),
+            tokens::Token::Identifier("b".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Colon),
+            tokens::Token::Keyword(tokens::KeywordToken::Float),
+            tokens::Token::Symbol(tokens::SymbolToken::Comma),
+            tokens::Token::Identifier("c".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Colon),
+            tokens::Token::Keyword(tokens::KeywordToken::String),
+            tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
+            tokens::Token::Keyword(tokens::KeywordToken::Fn),
+            tokens::Token::Identifier("max".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
+            tokens::Token::Identifier("a".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Colon),
+            tokens::Token::Keyword(tokens::KeywordToken::Int),
+            tokens::Token::Symbol(tokens::SymbolToken::Comma),
+            tokens::Token::Identifier("b".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Colon),
+            tokens::Token::Keyword(tokens::KeywordToken::Int),
+            tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis),
+            tokens::Token::Symbol(tokens::SymbolToken::RightArrow),
+            tokens::Token::Keyword(tokens::KeywordToken::Int),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
+            tokens::Token::Keyword(tokens::KeywordToken::If),
+            tokens::Token::Identifier("less".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
+            tokens::Token::Identifier("a".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Comma),
+            tokens::Token::Identifier("b".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
+            tokens::Token::Keyword(tokens::KeywordToken::Return),
+            tokens::Token::Identifier("b".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
+            tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
+            tokens::Token::Keyword(tokens::KeywordToken::Else),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
+            tokens::Token::Keyword(tokens::KeywordToken::Return),
+            tokens::Token::Identifier("a".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
+            tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
+            tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
+            tokens::Token::Keyword(tokens::KeywordToken::Fn),
+            tokens::Token::Identifier("main".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
+            tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis),
+            tokens::Token::Keyword(tokens::KeywordToken::With),
+            tokens::Token::Identifier("x".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Colon),
+            tokens::Token::Keyword(tokens::KeywordToken::Int),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
+            tokens::Token::Identifier("x".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Assign),
+            tokens::Token::Identifier("max".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
+            tokens::Token::Literal(tokens::LiteralToken::Integer(1)),
+            tokens::Token::Symbol(tokens::SymbolToken::Comma),
+            tokens::Token::Literal(tokens::LiteralToken::Integer(2)),
+            tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis),
+            tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
+            tokens::Token::Identifier("print".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
+            tokens::Token::Identifier("x".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis),
+            tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
+            tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
+        );
 
-        assert_eq!(tokens[0], Token::Keyword(KeywordToken::Struct));
-        assert_eq!(tokens[1], Token::Identifier("X".to_owned()));
-        assert_eq!(tokens[2], Token::Symbol(SymbolToken::LeftBrace));
-        assert_eq!(tokens[3], Token::Identifier("a".to_owned()));
-        assert_eq!(tokens[4], Token::Symbol(SymbolToken::Colon));
-        assert_eq!(tokens[5], Token::Keyword(KeywordToken::Int));
-        assert_eq!(tokens[6], Token::Symbol(SymbolToken::Semicolon));
-        assert_eq!(tokens[7], Token::Identifier("b".to_owned()));
-        assert_eq!(tokens[8], Token::Symbol(SymbolToken::Colon));
-        assert_eq!(tokens[9], Token::Keyword(KeywordToken::Float));
-        assert_eq!(tokens[10], Token::Symbol(SymbolToken::Semicolon));
-        assert_eq!(tokens[11], Token::Identifier("c".to_owned()));
-        assert_eq!(tokens[12], Token::Symbol(SymbolToken::Colon));
-        assert_eq!(tokens[13], Token::Keyword(KeywordToken::String));
-        assert_eq!(tokens[14], Token::Symbol(SymbolToken::Semicolon));
-        assert_eq!(tokens[15], Token::Symbol(SymbolToken::RightBrace));
-        assert_eq!(tokens[16], Token::Keyword(KeywordToken::Fn));
-        assert_eq!(tokens[17], Token::Identifier("max".to_owned()));
-        assert_eq!(tokens[18], Token::Symbol(SymbolToken::LeftParenthesis));
-        assert_eq!(tokens[19], Token::Identifier("a".to_owned()));
-        assert_eq!(tokens[20], Token::Symbol(SymbolToken::Colon));
-        assert_eq!(tokens[21], Token::Keyword(KeywordToken::Int));
-        assert_eq!(tokens[22], Token::Symbol(SymbolToken::Comma));
-        assert_eq!(tokens[23], Token::Identifier("b".to_owned()));
-        assert_eq!(tokens[24], Token::Symbol(SymbolToken::Colon));
-        assert_eq!(tokens[25], Token::Keyword(KeywordToken::Int));
-        assert_eq!(tokens[26], Token::Symbol(SymbolToken::RightParenthesis));
-        assert_eq!(tokens[27], Token::Symbol(SymbolToken::RightArrow));
-        assert_eq!(tokens[28], Token::Keyword(KeywordToken::Int));
-        assert_eq!(tokens[29], Token::Symbol(SymbolToken::LeftBrace));
-        assert_eq!(tokens[30], Token::Keyword(KeywordToken::If));
-        assert_eq!(tokens[31], Token::Identifier("a".to_owned()));
-        assert_eq!(tokens[32], Token::Symbol(SymbolToken::LeftAngle));
-        assert_eq!(tokens[33], Token::Identifier("b".to_owned()));
-        assert_eq!(tokens[34], Token::Symbol(SymbolToken::LeftBrace));
-        assert_eq!(tokens[35], Token::Keyword(KeywordToken::Return));
-        assert_eq!(tokens[36], Token::Identifier("b".to_owned()));
-        assert_eq!(tokens[37], Token::Symbol(SymbolToken::Semicolon));
-        assert_eq!(tokens[38], Token::Symbol(SymbolToken::RightBrace));
-        assert_eq!(tokens[39], Token::Keyword(KeywordToken::Else));
-        assert_eq!(tokens[40], Token::Symbol(SymbolToken::LeftBrace));
-        assert_eq!(tokens[41], Token::Keyword(KeywordToken::Return));
-        assert_eq!(tokens[42], Token::Identifier("a".to_owned()));
-        assert_eq!(tokens[43], Token::Symbol(SymbolToken::Semicolon));
-        assert_eq!(tokens[44], Token::Symbol(SymbolToken::RightBrace));
-        assert_eq!(tokens[45], Token::Symbol(SymbolToken::RightBrace));
-        assert_eq!(tokens[46], Token::Keyword(KeywordToken::Fn));
-        assert_eq!(tokens[47], Token::Identifier("main".to_owned()));
-        assert_eq!(tokens[48], Token::Symbol(SymbolToken::LeftParenthesis));
-        assert_eq!(tokens[49], Token::Symbol(SymbolToken::RightParenthesis));
-        assert_eq!(tokens[50], Token::Keyword(KeywordToken::With));
-        assert_eq!(tokens[51], Token::Identifier("x".to_owned()));
-        assert_eq!(tokens[52], Token::Symbol(SymbolToken::Colon));
-        assert_eq!(tokens[53], Token::Keyword(KeywordToken::Int));
-        assert_eq!(tokens[54], Token::Symbol(SymbolToken::LeftBrace));
-        assert_eq!(tokens[55], Token::Identifier("x".to_owned()));
-        assert_eq!(tokens[56], Token::Symbol(SymbolToken::Assign));
-        assert_eq!(tokens[57], Token::Identifier("max".to_owned()));
-        assert_eq!(tokens[58], Token::Symbol(SymbolToken::LeftParenthesis));
-        assert_eq!(tokens[59], Token::Literal(LiteralToken::Integer(1)));
-        assert_eq!(tokens[60], Token::Symbol(SymbolToken::Comma));
-        assert_eq!(tokens[61], Token::Literal(LiteralToken::Integer(2)));
-        assert_eq!(tokens[62], Token::Symbol(SymbolToken::RightParenthesis));
-        assert_eq!(tokens[63], Token::Symbol(SymbolToken::Semicolon));
-        assert_eq!(tokens[64], Token::Identifier("print".to_owned()));
-        assert_eq!(tokens[65], Token::Symbol(SymbolToken::LeftParenthesis));
-        assert_eq!(tokens[66], Token::Identifier("x".to_owned()));
-        assert_eq!(tokens[67], Token::Symbol(SymbolToken::RightParenthesis));
-        assert_eq!(tokens[68], Token::Symbol(SymbolToken::Semicolon));
-        assert_eq!(tokens[69], Token::Symbol(SymbolToken::RightBrace));
+        assert_eq!(tokens, expected);
     }
 }
 
