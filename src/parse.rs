@@ -158,11 +158,12 @@ pub mod parsetree {
             if *get_token(tokens, 1)? != tokens::Token::Symbol(tokens::SymbolToken::Colon) {
                 return Err(ParseError::from_token(&tokens[1]));
             }
-            match get_token(tokens, 2)? {
-                tokens::Token::Keyword(tokens::KeywordToken::Bool) => var.typ = Type::Bool,
-                tokens::Token::Keyword(tokens::KeywordToken::Int) => var.typ = Type::Integer,
-                tokens::Token::Keyword(tokens::KeywordToken::Float) => var.typ = Type::Float,
-                tokens::Token::Keyword(tokens::KeywordToken::String) => var.typ = Type::String,
+            var.typ = match get_token(tokens, 2)? {
+                tokens::Token::Keyword(tokens::KeywordToken::Bool) => Type::Bool,
+                tokens::Token::Keyword(tokens::KeywordToken::Int) => Type::Integer,
+                tokens::Token::Keyword(tokens::KeywordToken::Float) => Type::Float,
+                tokens::Token::Keyword(tokens::KeywordToken::String) => Type::String,
+                tokens::Token::Identifier(x) => Type::Struct(x.clone()),
                 _ => return Err(ParseError::from_token(&tokens[2]))
             };
 
@@ -178,6 +179,7 @@ pub mod parsetree {
         Integer,
         Float,
         String,
+        Struct(String)
     }
 
     impl Type {
@@ -1886,11 +1888,11 @@ mod tests {
             tokens::Token::Symbol(tokens::SymbolToken::Colon),
             tokens::Token::Keyword(tokens::KeywordToken::Int),
         );
-        // x: asdf
+        // x: 123
         let tokens2 = vec!(
             tokens::Token::Identifier("x".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::Colon),
-            tokens::Token::Identifier("asdf".to_owned()),
+            tokens::Token::Literal(tokens::LiteralToken::Integer(123))
         );
 
         let var1 = Variable {
@@ -2109,8 +2111,18 @@ mod tests {
             tokens::Token::Keyword(tokens::KeywordToken::Float),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
         );
-        // struct Foo {x: int; y: float}
+        // struct Foo {x: Bar}
         let tokens3 = vec!(
+            tokens::Token::Keyword(tokens::KeywordToken::Struct),
+            tokens::Token::Identifier("Foo".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
+            tokens::Token::Identifier("x".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Colon),
+            tokens::Token::Identifier("Bar".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
+        );
+        // struct Foo {x: int; y: float}
+        let tokens4 = vec!(
             tokens::Token::Keyword(tokens::KeywordToken::Struct),
             tokens::Token::Identifier("Foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
@@ -2124,7 +2136,7 @@ mod tests {
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
         );
         // struct Foo {x}
-        let tokens4 = vec!(
+        let tokens5 = vec!(
             tokens::Token::Keyword(tokens::KeywordToken::Struct),
             tokens::Token::Identifier("Foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
@@ -2153,19 +2165,33 @@ mod tests {
             ),
             position: (0, 0),
         };
+        let str3 = Struct {
+            name: "Foo".to_owned(),
+            fields: vec!(
+                Variable {
+                    name: "x".to_owned(),
+                    typ: Type::Struct("Bar".to_owned()),
+                    position: (0, 3),
+                },
+            ),
+            position: (0, 0),
+        };
 
         let result1 = Struct::parse_from(&give_tokens_positions(tokens1));
         let result2 = Struct::parse_from(&give_tokens_positions(tokens2));
         let result3 = Struct::parse_from(&give_tokens_positions(tokens3));
         let result4 = Struct::parse_from(&give_tokens_positions(tokens4));
+        let result5 = Struct::parse_from(&give_tokens_positions(tokens5));
 
         assert!(result1.is_ok());
         assert!(result2.is_ok());
-        assert!(result3.is_err());
+        assert!(result3.is_ok());
         assert!(result4.is_err());
+        assert!(result5.is_err());
 
         assert_eq!(result1.unwrap(), (str1, 4));
         assert_eq!(result2.unwrap(), (str2, 11));
+        assert_eq!(result3.unwrap(), (str3, 7));
     }
 
     #[test]
