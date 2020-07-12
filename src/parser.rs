@@ -46,10 +46,14 @@ pub mod parsetree {
             return Err(ParseError::from_token(&tokens[0]));
         }
 
-        Ok((block, index+1))
+        Ok((block, index + 1))
     }
 
     fn parse_join_exactly<T: Node<T>>(tokens: &[tokens::PositionalToken], separator: tokens::Token) -> Result<Vec<T>, ParseError> {
+        if tokens.is_empty() {
+            return Ok(Vec::new());
+        }
+
         let mut result = Vec::new();
         let mut index = 0;
 
@@ -65,7 +69,7 @@ pub mod parsetree {
             }
             index += 1;
 
-            let (node, size) = T::parse_from(tokens)?;
+            let (node, size) = T::parse_from(&tokens[index..])?;
             result.push(node);
             index += size;
         }
@@ -190,6 +194,11 @@ pub mod parsetree {
         fn parse_from(tokens: &[tokens::PositionalToken]) -> Result<(Struct, usize), ParseError> {
             assert!(!tokens.is_empty());
 
+            let total_size = tokens
+                .iter()
+                .position(|t| t.token == tokens::Token::Symbol(tokens::SymbolToken::RightBrace))
+                .ok_or(ParseError::from_token(tokens.last().unwrap()))?;
+
             // struct name {
             let name = {
                 if *get_token(tokens, 0)? != tokens::Token::Keyword(tokens::KeywordToken::Struct) {
@@ -206,20 +215,14 @@ pub mod parsetree {
             };
 
             // struct_field* }
-            let mut index = 3;
-            let fields = {
-                let mut fields = Vec::new();
-                while *get_token(tokens, index)? != tokens::Token::Symbol(tokens::SymbolToken::RightBrace) {
-                    let (field_var, size) = Variable::parse_from(&tokens[index..])?;
-                    fields.push(field_var);
-                    index += size;
-                }
-                fields
-            };
+            let fields = parse_join_exactly(&tokens[3..total_size], tokens::Token::Symbol(tokens::SymbolToken::Comma))?;
+            if *get_token(tokens, total_size)? != tokens::Token::Symbol(tokens::SymbolToken::RightBrace) {
+                return Err(ParseError::from_token(&tokens[total_size]));
+            }
 
             Ok((
                 Struct { name, fields, position: (tokens[0].line, tokens[0].column) },
-                index + 1
+                total_size + 1
             ))
         }
     }
@@ -250,7 +253,7 @@ pub mod parsetree {
                     return Err(ParseError::from_token(&tokens[2]));
                 }
                 if let tokens::Token::Identifier(name) = get_token(tokens, 1)? {
-                    index = 2;
+                    index = 3;
                     name.clone()
                 } else {
                     return Err(ParseError::from_token(&tokens[1]));
@@ -261,7 +264,7 @@ pub mod parsetree {
             let parameters = {
                 let (parameters, parameters_size) =
                     Function::parse_parameters(&tokens[index..])?;
-                index += parameters_size - 1;
+                index += parameters_size;
                 if *get_token(tokens, index)? != tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis) {
                     return Err(ParseError::from_token(&tokens[index]));
                 }
@@ -309,8 +312,7 @@ pub mod parsetree {
                     position: (tokens[0].line, tokens[0].column),
                 },
                 index
-            )
-            )
+            ))
         }
     }
 
@@ -320,7 +322,7 @@ pub mod parsetree {
                 .iter()
                 .position(|token| token.token == tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis))
                 .ok_or(ParseError { line: tokens.last().unwrap().line, column: tokens.last().unwrap().column })?;
-            let parameters = parse_join_exactly::<Variable>(
+            let parameters = parse_join_exactly(
                 &tokens[..end_index],
                 tokens::Token::Symbol(tokens::SymbolToken::Comma),
             )?;
@@ -346,6 +348,7 @@ pub mod parsetree {
     pub enum Statement {
         IfElse(IfElseStatement),
         While(WhileStatement),
+        Return(ReturnStatement),
         Assign(AssignStatement),
         Expression(Expression),
     }
@@ -363,6 +366,10 @@ pub mod parsetree {
                     let (statement, size) = WhileStatement::parse_from(tokens)?;
                     Ok((Statement::While(statement), size))
                 }
+                tokens::Token::Keyword(tokens::KeywordToken::Return) => {
+                    let (statement, size) = ReturnStatement::parse_from(tokens)?;
+                    Ok((Statement::Return(statement), size))
+                }
                 tokens::Token::Identifier(_) => {
                     let (expr, size) = Expression::parse_from(tokens)?;
                     if let Ok(tokens::Token::Symbol(tokens::SymbolToken::Semicolon)) = get_token(tokens, size) {
@@ -377,12 +384,11 @@ pub mod parsetree {
                     if *get_token(tokens, size)? != tokens::Token::Symbol(tokens::SymbolToken::Semicolon) {
                         return Err(ParseError::from_token(&tokens[size]));
                     }
-                    Ok((Statement::Expression(statement), size+1))
+                    Ok((Statement::Expression(statement), size + 1))
                 }
             }
         }
     }
-
 
     #[derive(Debug)]
     #[derive(std::cmp::PartialEq)]
@@ -485,6 +491,34 @@ pub mod parsetree {
         }
     }
 
+    #[derive(Debug)]
+    #[derive(std::cmp::PartialEq)]
+    pub struct ReturnStatement {
+        pub expression: Option<Expression>,
+        pub position: (usize, usize),
+    }
+
+    impl Node<ReturnStatement> for ReturnStatement {
+        fn parse_from(tokens: &[tokens::PositionalToken]) -> Result<(ReturnStatement, usize), ParseError> {
+            assert!(!tokens.is_empty());
+
+            if *get_token(tokens, 0)? != tokens::Token::Keyword(tokens::KeywordToken::Return) {
+                return Err(ParseError::from_token(&tokens[0]));
+            }
+
+            let (expr, size) = if *get_token(tokens, 1)? == tokens::Token::Symbol(tokens::SymbolToken::Semicolon) {
+                (None, 2)
+            } else {
+                let (expr, size) = Expression::parse_from(&tokens[1..])?;
+                if *get_token(tokens, size + 1)? != tokens::Token::Symbol(tokens::SymbolToken::Semicolon) {
+                    return Err(ParseError::from_token(&tokens[size + 1]));
+                }
+                (Some(expr), size + 2)
+            };
+
+            Ok((ReturnStatement { expression: expr, position: (tokens[0].line, tokens[0].column) }, size))
+        }
+    }
 
     #[derive(Debug)]
     #[derive(std::cmp::PartialEq)]
@@ -1194,10 +1228,10 @@ mod tests {
                         args: vec!(
                             Expression {
                                 value: ExpressionValue::Literal(LiteralExpression::Int(1)),
-                                position: (0, 3)
+                                position: (0, 3),
                             }
                         ),
-                        fields: Vec::new()
+                        fields: Vec::new(),
                     }
                 ),
                 position: (0, 1),
@@ -1233,9 +1267,9 @@ mod tests {
                                     fields: Vec::new(),
                                 }
                             ),
-                            position: (0, 10)
+                            position: (0, 10),
                         },
-                        position: (0, 8)
+                        position: (0, 8),
                     }
                 )
             ),
@@ -1316,10 +1350,10 @@ mod tests {
                         args: vec!(
                             Expression {
                                 value: ExpressionValue::Literal(LiteralExpression::Int(1)),
-                                position: (0, 3)
+                                position: (0, 3),
                             }
                         ),
-                        fields: Vec::new()
+                        fields: Vec::new(),
                     }
                 ),
                 position: (0, 1),
@@ -1344,9 +1378,9 @@ mod tests {
                                     fields: Vec::new(),
                                 }
                             ),
-                            position: (0, 10)
+                            position: (0, 10),
                         },
-                        position: (0, 8)
+                        position: (0, 8),
                     }
                 )
             ),
@@ -1365,6 +1399,69 @@ mod tests {
 
         assert_eq!(result1.unwrap(), (stmt1, 4));
         assert_eq!(result2.unwrap(), (stmt2, 13));
+    }
+
+    #[test]
+    fn test_return_stmt() {
+        // return foo.bar;
+        let tokens1 = vec!(
+            tokens::Token::Keyword(tokens::KeywordToken::Return),
+            tokens::Token::Identifier("foo".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Period),
+            tokens::Token::Identifier("bar".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Semicolon)
+        );
+        // return;
+        let tokens2 = vec!(
+            tokens::Token::Keyword(tokens::KeywordToken::Return),
+            tokens::Token::Symbol(tokens::SymbolToken::Semicolon)
+        );
+        // return x = y;
+        let tokens3 = vec!(
+            tokens::Token::Keyword(tokens::KeywordToken::Return),
+            tokens::Token::Identifier("x".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Assign),
+            tokens::Token::Identifier("y".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Semicolon)
+        );
+        // return foo.bar
+        let tokens4 = vec!(
+            tokens::Token::Keyword(tokens::KeywordToken::Return),
+            tokens::Token::Identifier("foo".to_owned()),
+            tokens::Token::Identifier("bar".to_owned()),
+        );
+
+        let stmt1 = ReturnStatement {
+            expression: Some(
+                Expression {
+                    value: ExpressionValue::Atom(
+                        AtomExpression {
+                            var_name: "foo".to_owned(),
+                            fields: vec!("bar".to_owned()),
+                        }
+                    ),
+                    position: (0, 1),
+                }
+            ),
+            position: (0, 0),
+        };
+        let stmt2 = ReturnStatement {
+            expression: None,
+            position: (0, 0),
+        };
+
+        let result1 = ReturnStatement::parse_from(&give_tokens_positions(tokens1));
+        let result2 = ReturnStatement::parse_from(&give_tokens_positions(tokens2));
+        let result3 = ReturnStatement::parse_from(&give_tokens_positions(tokens3));
+        let result4 = ReturnStatement::parse_from(&give_tokens_positions(tokens4));
+
+        assert!(result1.is_ok());
+        assert!(result2.is_ok());
+        assert!(result3.is_err());
+        assert!(result4.is_err());
+
+        assert_eq!(result1.unwrap(), (stmt1, 5));
+        assert_eq!(result2.unwrap(), (stmt2, 2));
     }
 
     #[test]
@@ -1422,8 +1519,14 @@ mod tests {
             tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
         );
-        // if foo { if bar {x=y;} else {y=x;} } else { while baz {1; 2; 3;} }
+        // return 1;
         let tokens5 = vec!(
+            tokens::Token::Keyword(tokens::KeywordToken::Return),
+            tokens::Token::Literal(tokens::LiteralToken::Integer(1)),
+            tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
+        );
+        // if foo { if bar {x=y;} else {y=x;} } else { while baz {1; 2; 3;} }
+        let tokens6 = vec!(
             tokens::Token::Keyword(tokens::KeywordToken::If),
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
@@ -1458,7 +1561,7 @@ mod tests {
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
         );
         // if foo { bar {x=y;} else {y=x;} } else { while baz {1; 2; 3;} }
-        let tokens6 = vec!(
+        let tokens7 = vec!(
             tokens::Token::Keyword(tokens::KeywordToken::If),
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
@@ -1492,13 +1595,13 @@ mod tests {
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
         );
         // foo.bar
-        let tokens7 = vec!(
+        let tokens8 = vec!(
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::Period),
             tokens::Token::Identifier("bar".to_owned()),
         );
         // 1
-        let tokens8 = vec!(
+        let tokens9 = vec!(
             tokens::Token::Literal(tokens::LiteralToken::Integer(1)),
         );
 
@@ -1559,9 +1662,9 @@ mod tests {
                                         fields: Vec::new(),
                                     }
                                 ),
-                                position: (0, 10)
+                                position: (0, 10),
                             },
-                            position: (0, 8)
+                            position: (0, 8),
                         }
                     )
                 ),
@@ -1577,10 +1680,10 @@ mod tests {
                             args: vec!(
                                 Expression {
                                     value: ExpressionValue::Literal(LiteralExpression::Int(1)),
-                                    position: (0, 3)
+                                    position: (0, 3),
                                 }
                             ),
-                            fields: Vec::new()
+                            fields: Vec::new(),
                         }
                     ),
                     position: (0, 1),
@@ -1605,19 +1708,31 @@ mod tests {
                                         fields: Vec::new(),
                                     }
                                 ),
-                                position: (0, 10)
+                                position: (0, 10),
                             },
-                            position: (0, 8)
+                            position: (0, 8),
                         }
                     )
                 ),
                 position: (0, 0),
             }
         );
+        let stmt5 = Statement::Return(
+            ReturnStatement {
+                expression: Some(
+                    Expression {
+                        value: ExpressionValue::Literal(
+                            LiteralExpression::Int(1)
+                        ),
+                        position: (0, 1),
+                    }
+                ),
+                position: (0, 0),
+            }
+        );
 
 
-        // if foo { if bar {x=y;} else {y=x;} } else { while baz {1; 2; 3;} }
-        let stmt5 = Statement::IfElse(
+        let stmt6 = Statement::IfElse(
             IfElseStatement {
                 condition: Expression {
                     value: ExpressionValue::Atom(
@@ -1626,7 +1741,7 @@ mod tests {
                             fields: Vec::new(),
                         }
                     ),
-                    position: (0, 1)
+                    position: (0, 1),
                 },
                 if_block: vec!(
                     Statement::IfElse(
@@ -1635,10 +1750,10 @@ mod tests {
                                 value: ExpressionValue::Atom(
                                     AtomExpression {
                                         var_name: "bar".to_owned(),
-                                        fields: Vec::new()
+                                        fields: Vec::new(),
                                     }
                                 ),
-                                position: (0, 4)
+                                position: (0, 4),
                             },
                             if_block: vec!(
                                 Statement::Assign(
@@ -1654,9 +1769,9 @@ mod tests {
                                                     fields: Vec::new(),
                                                 }
                                             ),
-                                            position: (0, 8)
+                                            position: (0, 8),
                                         },
-                                        position: (0, 6)
+                                        position: (0, 6),
                                     }
                                 )
                             ),
@@ -1674,13 +1789,13 @@ mod tests {
                                                     fields: Vec::new(),
                                                 }
                                             ),
-                                            position: (0, 15)
+                                            position: (0, 15),
                                         },
-                                        position: (0, 13)
+                                        position: (0, 13),
                                     }
                                 )
                             ),
-                            position: (0, 3)
+                            position: (0, 3),
                         }
                     )
                 ),
@@ -1691,10 +1806,10 @@ mod tests {
                                 value: ExpressionValue::Atom(
                                     AtomExpression {
                                         var_name: "baz".to_owned(),
-                                        fields: Vec::new()
+                                        fields: Vec::new(),
                                     }
                                 ),
-                                position: (0, 22)
+                                position: (0, 22),
                             },
                             body: vec!(
                                 Statement::Expression(
@@ -1716,11 +1831,11 @@ mod tests {
                                     }
                                 )
                             ),
-                            position: (0, 21)
+                            position: (0, 21),
                         }
                     )
                 ),
-                position: (0, 0)
+                position: (0, 0),
             }
         );
 
@@ -1732,21 +1847,24 @@ mod tests {
         let result6 = Statement::parse_from(&give_tokens_positions(tokens6));
         let result7 = Statement::parse_from(&give_tokens_positions(tokens7));
         let result8 = Statement::parse_from(&give_tokens_positions(tokens8));
+        let result9 = Statement::parse_from(&give_tokens_positions(tokens9));
 
         assert!(result1.is_ok());
         assert!(result2.is_ok());
         assert!(result3.is_ok());
         assert!(result4.is_ok());
         assert!(result5.is_ok());
-        assert!(result6.is_err());
+        assert!(result6.is_ok());
         assert!(result7.is_err());
         assert!(result8.is_err());
+        assert!(result9.is_err());
 
         assert_eq!(result1.unwrap(), (stmt1, 3));
         assert_eq!(result2.unwrap(), (stmt2, 10));
         assert_eq!(result3.unwrap(), (stmt3, 13));
         assert_eq!(result4.unwrap(), (stmt4, 13));
-        assert_eq!(result5.unwrap(), (stmt5, 32));
+        assert_eq!(result5.unwrap(), (stmt5, 3));
+        assert_eq!(result6.unwrap(), (stmt6, 32));
     }
 
     #[test]
@@ -1780,11 +1898,267 @@ mod tests {
     }
 
     #[test]
-    fn test_function() {}
+    fn test_function() {
+        // fn foo() {}
+        let tokens1 = vec!(
+            tokens::Token::Keyword(tokens::KeywordToken::Fn),
+            tokens::Token::Identifier("foo".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
+            tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
+            tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
+        );
+        // fn foo(x: int, y: float) -> string {x = y; return "";}
+        let tokens2 = vec!(
+            tokens::Token::Keyword(tokens::KeywordToken::Fn),
+            tokens::Token::Identifier("foo".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
+            tokens::Token::Identifier("x".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Colon),
+            tokens::Token::Keyword(tokens::KeywordToken::Int),
+            tokens::Token::Symbol(tokens::SymbolToken::Comma),
+            tokens::Token::Identifier("y".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Colon),
+            tokens::Token::Keyword(tokens::KeywordToken::Float),
+            tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis),
+            tokens::Token::Symbol(tokens::SymbolToken::RightArrow),
+            tokens::Token::Keyword(tokens::KeywordToken::String),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
+            tokens::Token::Identifier("x".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Assign),
+            tokens::Token::Identifier("y".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
+            tokens::Token::Keyword(tokens::KeywordToken::Return),
+            tokens::Token::Literal(tokens::LiteralToken::String("".to_owned())),
+            tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
+            tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
+        );
+        // fn foo() with a: int {}
+        let tokens3 = vec!(
+            tokens::Token::Keyword(tokens::KeywordToken::Fn),
+            tokens::Token::Identifier("foo".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
+            tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis),
+            tokens::Token::Keyword(tokens::KeywordToken::With),
+            tokens::Token::Identifier("a".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Colon),
+            tokens::Token::Keyword(tokens::KeywordToken::Int),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
+            tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
+        );
+        // fn foo(x: int, y: float) -> {return "";}
+        let tokens4 = vec!(
+            tokens::Token::Keyword(tokens::KeywordToken::Fn),
+            tokens::Token::Identifier("foo".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
+            tokens::Token::Identifier("x".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Colon),
+            tokens::Token::Keyword(tokens::KeywordToken::Int),
+            tokens::Token::Symbol(tokens::SymbolToken::Comma),
+            tokens::Token::Identifier("y".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Colon),
+            tokens::Token::Keyword(tokens::KeywordToken::Float),
+            tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis),
+            tokens::Token::Symbol(tokens::SymbolToken::RightArrow),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
+            tokens::Token::Identifier("x".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Assign),
+            tokens::Token::Identifier("y".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
+            tokens::Token::Keyword(tokens::KeywordToken::Return),
+            tokens::Token::Literal(tokens::LiteralToken::String("".to_owned())),
+            tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
+            tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
+        );
+        // fn foo(x: int, y: float);
+        let tokens5 = vec!(
+            tokens::Token::Keyword(tokens::KeywordToken::Fn),
+            tokens::Token::Identifier("foo".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
+            tokens::Token::Identifier("x".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Colon),
+            tokens::Token::Keyword(tokens::KeywordToken::Int),
+            tokens::Token::Symbol(tokens::SymbolToken::Comma),
+            tokens::Token::Identifier("y".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Colon),
+            tokens::Token::Keyword(tokens::KeywordToken::Float),
+            tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis),
+            tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
+        );
+
+        let fn1 = Function {
+            name: "foo".to_owned(),
+            parameters: Vec::new(),
+            return_type: None,
+            local_variables: Vec::new(),
+            body: Vec::new(),
+            position: (0, 0)
+        };
+        let fn2 = Function {
+            name: "foo".to_owned(),
+            parameters: vec!(
+                Variable {
+                    name: "x".to_owned(),
+                    typ: Type::Integer,
+                    position: (0, 3)
+                },
+                Variable {
+                    name: "y".to_owned(),
+                    typ: Type::Float,
+                    position: (0, 7)
+                }
+            ),
+            return_type: Some(Type::String),
+            local_variables: Vec::new(),
+            body: vec!(
+                Statement::Assign(
+                    AssignStatement {
+                        target: AtomExpression {
+                            var_name: "x".to_owned(),
+                            fields: Vec::new(),
+                        },
+                        value: Expression {
+                            value: ExpressionValue::Atom(
+                                AtomExpression {
+                                    var_name: "y".to_owned(),
+                                    fields: Vec::new(),
+                                }
+                            ),
+                            position: (0, 16),
+                        },
+                        position: (0, 14),
+                    }
+                ),
+                Statement::Return(
+                    ReturnStatement {
+                        expression: Some(
+                            Expression {
+                                value: ExpressionValue::Literal(LiteralExpression::String("".to_owned())),
+                                position: (0, 19)
+                            }
+                        ),
+                        position: (0, 18)
+                    }
+                )
+            ),
+            position: (0, 0),
+        };
+        let fn3 = Function {
+            name: "foo".to_owned(),
+            parameters: Vec::new(),
+            return_type: None,
+            local_variables: vec!(
+                Variable {
+                    name: "a".to_owned(),
+                    typ: Type::Integer,
+                    position: (0, 5)
+                }
+            ),
+            body: Vec::new(),
+            position: (0, 0)
+        };
+
+        let result1 = Function::parse_from(&give_tokens_positions(tokens1));
+        let result2 = Function::parse_from(&give_tokens_positions(tokens2));
+        let result3 = Function::parse_from(&give_tokens_positions(tokens3));
+        let result4 = Function::parse_from(&give_tokens_positions(tokens4));
+        let result5 = Function::parse_from(&give_tokens_positions(tokens5));
+
+        assert!(result1.is_ok());
+        assert!(result2.is_ok());
+        assert!(result3.is_ok());
+        assert!(result4.is_err());
+        assert!(result5.is_err());
+
+        assert_eq!(result1.unwrap(), (fn1, 6));
+        assert_eq!(result2.unwrap(), (fn2, 22));
+        assert_eq!(result3.unwrap(), (fn3, 10));
+    }
 
     #[test]
-    fn test_struct() {}
+    fn test_struct() {
+        // struct Foo {}
+        let tokens1 = vec!(
+            tokens::Token::Keyword(tokens::KeywordToken::Struct),
+            tokens::Token::Identifier("Foo".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
+            tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
+        );
+        // struct Foo {x: int, y: float}
+        let tokens2 = vec!(
+            tokens::Token::Keyword(tokens::KeywordToken::Struct),
+            tokens::Token::Identifier("Foo".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
+            tokens::Token::Identifier("x".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Colon),
+            tokens::Token::Keyword(tokens::KeywordToken::Int),
+            tokens::Token::Symbol(tokens::SymbolToken::Comma),
+            tokens::Token::Identifier("y".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Colon),
+            tokens::Token::Keyword(tokens::KeywordToken::Float),
+            tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
+        );
+        // struct Foo {x: int; y: float}
+        let tokens3 = vec!(
+            tokens::Token::Keyword(tokens::KeywordToken::Struct),
+            tokens::Token::Identifier("Foo".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
+            tokens::Token::Identifier("x".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Colon),
+            tokens::Token::Keyword(tokens::KeywordToken::Int),
+            tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
+            tokens::Token::Identifier("y".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::Colon),
+            tokens::Token::Keyword(tokens::KeywordToken::Float),
+            tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
+        );
+        // struct Foo {x}
+        let tokens4 = vec!(
+            tokens::Token::Keyword(tokens::KeywordToken::Struct),
+            tokens::Token::Identifier("Foo".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
+            tokens::Token::Identifier("x".to_owned()),
+            tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
+        );
+
+        let str1 = Struct {
+            name: "Foo".to_owned(),
+            fields: Vec::new(),
+            position: (0, 0),
+        };
+        let str2 = Struct {
+            name: "Foo".to_owned(),
+            fields: vec!(
+                Variable {
+                    name: "x".to_owned(),
+                    typ: Type::Integer,
+                    position: (0, 3),
+                },
+                Variable {
+                    name: "y".to_owned(),
+                    typ: Type::Float,
+                    position: (0, 7),
+                }
+            ),
+            position: (0, 0),
+        };
+
+        let result1 = Struct::parse_from(&give_tokens_positions(tokens1));
+        let result2 = Struct::parse_from(&give_tokens_positions(tokens2));
+        let result3 = Struct::parse_from(&give_tokens_positions(tokens3));
+        let result4 = Struct::parse_from(&give_tokens_positions(tokens4));
+
+        assert!(result1.is_ok());
+        assert!(result2.is_ok());
+        assert!(result3.is_err());
+        assert!(result4.is_err());
+
+        assert_eq!(result1.unwrap(), (str1, 4));
+        assert_eq!(result2.unwrap(), (str2, 11));
+    }
 
     #[test]
-    fn test_program() {}
+    fn test_program() {
+        // TODO
+    }
 }
