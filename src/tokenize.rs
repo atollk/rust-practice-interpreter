@@ -1,6 +1,5 @@
 pub mod tokens {
-    #[derive(Debug)]
-    #[derive(std::cmp::PartialEq)]
+    #[derive(Debug, std::cmp::PartialEq)]
     pub enum LiteralToken {
         Bool(bool),
         Integer(i32),
@@ -8,10 +7,7 @@ pub mod tokens {
         String(String),
     }
 
-    #[derive(Debug)]
-    #[derive(std::cmp::PartialEq)]
-    #[derive(std::cmp::Eq)]
-    #[derive(std::hash::Hash)]
+    #[derive(Debug, std::cmp::PartialEq, std::cmp::Eq, std::hash::Hash)]
     pub enum KeywordToken {
         Fn,
         Struct,
@@ -26,10 +22,7 @@ pub mod tokens {
         String,
     }
 
-    #[derive(Debug)]
-    #[derive(std::cmp::PartialEq)]
-    #[derive(std::cmp::Eq)]
-    #[derive(std::hash::Hash)]
+    #[derive(Debug, std::cmp::PartialEq, std::cmp::Eq, std::hash::Hash)]
     pub enum SymbolToken {
         LeftBrace,
         RightBrace,
@@ -47,8 +40,7 @@ pub mod tokens {
         Period,
     }
 
-    #[derive(Debug)]
-    #[derive(std::cmp::PartialEq)]
+    #[derive(Debug, std::cmp::PartialEq)]
     pub enum Token {
         Literal(LiteralToken),
         Keyword(KeywordToken),
@@ -57,8 +49,7 @@ pub mod tokens {
         Whitespace,
     }
 
-    #[derive(Debug)]
-    #[derive(std::cmp::PartialEq)]
+    #[derive(Debug, std::cmp::PartialEq)]
     pub struct PositionalToken {
         pub token: Token,
         pub line: usize,
@@ -68,17 +59,17 @@ pub mod tokens {
     use std::collections::HashMap;
 
     lazy_static! {
-        static ref KEYWORD_MAP: HashMap<KeywordToken, &'static str> = vec!{
+        static ref KEYWORD_MAP: HashMap<KeywordToken, &'static str> = vec! {
             (KeywordToken::Fn, "fn"),
             (KeywordToken::Struct, "struct")
-        }.into_iter().collect();
+        }
+        .into_iter()
+        .collect();
     }
 }
 
-
 mod matcher {
     use regex::Regex;
-
 
     pub fn match_one_token(text: &str, byte_index: &mut usize) -> Option<super::tokens::Token> {
         match text[*byte_index..].chars().nth(0)? {
@@ -89,7 +80,7 @@ mod matcher {
             '0'..='9' => match_number_literal(text, byte_index),
             '"' => match_string_literal(text, byte_index),
             'a'..='z' | 'A'..='Z' | '_' => match_keyword_or_identifier(text, byte_index),
-            _ => match_symbol(text, byte_index)
+            _ => match_symbol(text, byte_index),
         }
     }
 
@@ -104,10 +95,14 @@ mod matcher {
 
         if is_integer {
             let val: i32 = matched_str.parse().ok()?;
-            Some(super::tokens::Token::Literal(super::tokens::LiteralToken::Integer(val)))
+            Some(super::tokens::Token::Literal(
+                super::tokens::LiteralToken::Integer(val),
+            ))
         } else {
             let val: f64 = matched_str.parse().ok()?;
-            Some(super::tokens::Token::Literal(super::tokens::LiteralToken::Float(val)))
+            Some(super::tokens::Token::Literal(
+                super::tokens::LiteralToken::Float(val),
+            ))
         }
     }
 
@@ -118,16 +113,15 @@ mod matcher {
         let m: regex::Match = RE.find(&text[*byte_index..])?;
         let matched_str = m.as_str();
         *byte_index += matched_str.len();
-        return Some(
-            super::tokens::Token::Literal(
-                super::tokens::LiteralToken::String(
-                    matched_str[1..matched_str.len() - 1].to_owned()
-                )
-            )
-        );
+        return Some(super::tokens::Token::Literal(
+            super::tokens::LiteralToken::String(matched_str[1..matched_str.len() - 1].to_owned()),
+        ));
     }
 
-    fn match_keyword_or_identifier(text: &str, byte_index: &mut usize) -> Option<super::tokens::Token> {
+    fn match_keyword_or_identifier(
+        text: &str,
+        byte_index: &mut usize,
+    ) -> Option<super::tokens::Token> {
         lazy_static! {
             static ref RE: Regex = Regex::new(r"^(_|\w)(_|\w|\d)*").unwrap();
         }
@@ -148,35 +142,63 @@ mod matcher {
             "int" => super::tokens::Token::Keyword(super::tokens::KeywordToken::Int),
             "float" => super::tokens::Token::Keyword(super::tokens::KeywordToken::Float),
             "string" => super::tokens::Token::Keyword(super::tokens::KeywordToken::String),
-            _ => super::tokens::Token::Identifier(matched_str.to_owned())
+            _ => super::tokens::Token::Identifier(matched_str.to_owned()),
         };
         Some(token)
     }
 
     fn match_symbol(text: &str, byte_index: &mut usize) -> Option<super::tokens::Token> {
         let token = match text[*byte_index..].chars().nth(0)? {
-            '{' => Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::LeftBrace)),
-            '}' => Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::RightBrace)),
-            '(' => Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::LeftParenthesis)),
-            ')' => Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::RightParenthesis)),
-            '[' => Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::LeftBracket)),
-            ']' => Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::RightBracket)),
-            '<' => Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::LeftAngle)),
-            '>' => Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::RightAngle)),
+            '{' => Some(super::tokens::Token::Symbol(
+                super::tokens::SymbolToken::LeftBrace,
+            )),
+            '}' => Some(super::tokens::Token::Symbol(
+                super::tokens::SymbolToken::RightBrace,
+            )),
+            '(' => Some(super::tokens::Token::Symbol(
+                super::tokens::SymbolToken::LeftParenthesis,
+            )),
+            ')' => Some(super::tokens::Token::Symbol(
+                super::tokens::SymbolToken::RightParenthesis,
+            )),
+            '[' => Some(super::tokens::Token::Symbol(
+                super::tokens::SymbolToken::LeftBracket,
+            )),
+            ']' => Some(super::tokens::Token::Symbol(
+                super::tokens::SymbolToken::RightBracket,
+            )),
+            '<' => Some(super::tokens::Token::Symbol(
+                super::tokens::SymbolToken::LeftAngle,
+            )),
+            '>' => Some(super::tokens::Token::Symbol(
+                super::tokens::SymbolToken::RightAngle,
+            )),
             '-' => {
                 if let Some('>') = text[*byte_index..].chars().nth(1) {
                     *byte_index += 1;
-                    Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::RightArrow))
+                    Some(super::tokens::Token::Symbol(
+                        super::tokens::SymbolToken::RightArrow,
+                    ))
                 } else {
                     None
                 }
             }
-            '=' => Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::Assign)),
-            ':' => Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::Colon)),
-            ',' => Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::Comma)),
-            ';' => Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::Semicolon)),
-            '.' => Some(super::tokens::Token::Symbol(super::tokens::SymbolToken::Period)),
-            _ => None
+            '=' => Some(super::tokens::Token::Symbol(
+                super::tokens::SymbolToken::Assign,
+            )),
+            ':' => Some(super::tokens::Token::Symbol(
+                super::tokens::SymbolToken::Colon,
+            )),
+            ',' => Some(super::tokens::Token::Symbol(
+                super::tokens::SymbolToken::Comma,
+            )),
+            ';' => Some(super::tokens::Token::Symbol(
+                super::tokens::SymbolToken::Semicolon,
+            )),
+            '.' => Some(super::tokens::Token::Symbol(
+                super::tokens::SymbolToken::Period,
+            )),
+            _ => None,
         };
         *byte_index += 1;
         token
@@ -206,17 +228,20 @@ fn index_to_lcol(text: &str, byte_index: usize) -> (usize, usize) {
     (0, 0)
 }
 
-
-pub fn tokenize_once(input: &str, byte_index: &mut usize)
-                     -> Result<tokens::PositionalToken, TokenizeError>
-{
+pub fn tokenize_once(
+    input: &str,
+    byte_index: &mut usize,
+) -> Result<tokens::PositionalToken, TokenizeError> {
     let (line, column) = index_to_lcol(input, *byte_index);
     match matcher::match_one_token(input, byte_index) {
-        Some(token) => Ok(tokens::PositionalToken { token, line, column }),
-        None => Err(TokenizeError { line, column })
+        Some(token) => Ok(tokens::PositionalToken {
+            token,
+            line,
+            column,
+        }),
+        None => Err(TokenizeError { line, column }),
     }
 }
-
 
 pub fn tokenize(input: &str) -> Result<Vec<tokens::PositionalToken>, TokenizeError> {
     let mut tokens = Vec::new();
@@ -225,17 +250,16 @@ pub fn tokenize(input: &str) -> Result<Vec<tokens::PositionalToken>, TokenizeErr
         let token = tokenize_once(input, &mut byte_index)?;
         match token.token {
             tokens::Token::Whitespace => (),
-            _ => tokens.push(token)
+            _ => tokens.push(token),
         };
     }
     Ok(tokens)
 }
 
-
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::tokens::*;
+    use super::*;
 
     fn one_token(input: &str) -> Token {
         let mut index = 0;
@@ -277,38 +301,94 @@ mod tests {
         let symbol_period = ".";
         let identifier = "foo";
 
-        assert_eq!(one_token(bool_literal), Token::Literal(LiteralToken::Bool(false)));
-        assert_eq!(one_token(int_literal), Token::Literal(LiteralToken::Integer(42)));
-        assert_eq!(one_token(float_literal), Token::Literal(LiteralToken::Float(123.456)));
-        assert_eq!(one_token(string_literal), Token::Literal(LiteralToken::String("hello world".to_owned())));
+        assert_eq!(
+            one_token(bool_literal),
+            Token::Literal(LiteralToken::Bool(false))
+        );
+        assert_eq!(
+            one_token(int_literal),
+            Token::Literal(LiteralToken::Integer(42))
+        );
+        assert_eq!(
+            one_token(float_literal),
+            Token::Literal(LiteralToken::Float(123.456))
+        );
+        assert_eq!(
+            one_token(string_literal),
+            Token::Literal(LiteralToken::String("hello world".to_owned()))
+        );
         assert_eq!(one_token(keyword_fn), Token::Keyword(KeywordToken::Fn));
-        assert_eq!(one_token(keyword_struct), Token::Keyword(KeywordToken::Struct));
+        assert_eq!(
+            one_token(keyword_struct),
+            Token::Keyword(KeywordToken::Struct)
+        );
         assert_eq!(one_token(keyword_with), Token::Keyword(KeywordToken::With));
         assert_eq!(one_token(keyword_if), Token::Keyword(KeywordToken::If));
         assert_eq!(one_token(keyword_else), Token::Keyword(KeywordToken::Else));
-        assert_eq!(one_token(keyword_while), Token::Keyword(KeywordToken::While));
-        assert_eq!(one_token(keyword_return), Token::Keyword(KeywordToken::Return));
+        assert_eq!(
+            one_token(keyword_while),
+            Token::Keyword(KeywordToken::While)
+        );
+        assert_eq!(
+            one_token(keyword_return),
+            Token::Keyword(KeywordToken::Return)
+        );
         assert_eq!(one_token(keyword_int), Token::Keyword(KeywordToken::Int));
         assert_eq!(one_token(keyword_bool), Token::Keyword(KeywordToken::Bool));
-        assert_eq!(one_token(keyword_float), Token::Keyword(KeywordToken::Float));
-        assert_eq!(one_token(keyword_string), Token::Keyword(KeywordToken::String));
-        assert_eq!(one_token(symbol_lbrace), Token::Symbol(SymbolToken::LeftBrace));
-        assert_eq!(one_token(symbol_rbrace), Token::Symbol(SymbolToken::RightBrace));
-        assert_eq!(one_token(symbol_lparant), Token::Symbol(SymbolToken::LeftParenthesis));
-        assert_eq!(one_token(symbol_rparant), Token::Symbol(SymbolToken::RightParenthesis));
-        assert_eq!(one_token(symbol_lbracket), Token::Symbol(SymbolToken::LeftBracket));
-        assert_eq!(one_token(symbol_rbracket), Token::Symbol(SymbolToken::RightBracket));
-        assert_eq!(one_token(symbol_langle), Token::Symbol(SymbolToken::LeftAngle));
-        assert_eq!(one_token(symbol_rangle), Token::Symbol(SymbolToken::RightAngle));
-        assert_eq!(one_token(symbol_rightarrow), Token::Symbol(SymbolToken::RightArrow));
+        assert_eq!(
+            one_token(keyword_float),
+            Token::Keyword(KeywordToken::Float)
+        );
+        assert_eq!(
+            one_token(keyword_string),
+            Token::Keyword(KeywordToken::String)
+        );
+        assert_eq!(
+            one_token(symbol_lbrace),
+            Token::Symbol(SymbolToken::LeftBrace)
+        );
+        assert_eq!(
+            one_token(symbol_rbrace),
+            Token::Symbol(SymbolToken::RightBrace)
+        );
+        assert_eq!(
+            one_token(symbol_lparant),
+            Token::Symbol(SymbolToken::LeftParenthesis)
+        );
+        assert_eq!(
+            one_token(symbol_rparant),
+            Token::Symbol(SymbolToken::RightParenthesis)
+        );
+        assert_eq!(
+            one_token(symbol_lbracket),
+            Token::Symbol(SymbolToken::LeftBracket)
+        );
+        assert_eq!(
+            one_token(symbol_rbracket),
+            Token::Symbol(SymbolToken::RightBracket)
+        );
+        assert_eq!(
+            one_token(symbol_langle),
+            Token::Symbol(SymbolToken::LeftAngle)
+        );
+        assert_eq!(
+            one_token(symbol_rangle),
+            Token::Symbol(SymbolToken::RightAngle)
+        );
+        assert_eq!(
+            one_token(symbol_rightarrow),
+            Token::Symbol(SymbolToken::RightArrow)
+        );
         assert_eq!(one_token(symbol_assign), Token::Symbol(SymbolToken::Assign));
         assert_eq!(one_token(symbol_colon), Token::Symbol(SymbolToken::Colon));
         assert_eq!(one_token(symbol_comma), Token::Symbol(SymbolToken::Comma));
-        assert_eq!(one_token(symbol_semicolon), Token::Symbol(SymbolToken::Semicolon));
+        assert_eq!(
+            one_token(symbol_semicolon),
+            Token::Symbol(SymbolToken::Semicolon)
+        );
         assert_eq!(one_token(symbol_period), Token::Symbol(SymbolToken::Period));
         assert_eq!(one_token(identifier), Token::Identifier("foo".to_owned()));
     }
-
 
     #[test]
     fn test_difficult_identifiers_and_keywords() {
@@ -319,19 +399,35 @@ mod tests {
         let identifier_5 = "while1";
         let identifier_6 = "X";
 
-        assert_eq!(one_token(identifier_1), Token::Identifier(identifier_1.to_owned()));
-        assert_eq!(one_token(identifier_2), Token::Identifier(identifier_2.to_owned()));
-        assert_eq!(one_token(identifier_3), Token::Identifier(identifier_3.to_owned()));
-        assert_eq!(one_token(identifier_4), Token::Identifier(identifier_4.to_owned()));
-        assert_eq!(one_token(identifier_5), Token::Identifier(identifier_5.to_owned()));
-        assert_eq!(one_token(identifier_6), Token::Identifier(identifier_6.to_owned()));
+        assert_eq!(
+            one_token(identifier_1),
+            Token::Identifier(identifier_1.to_owned())
+        );
+        assert_eq!(
+            one_token(identifier_2),
+            Token::Identifier(identifier_2.to_owned())
+        );
+        assert_eq!(
+            one_token(identifier_3),
+            Token::Identifier(identifier_3.to_owned())
+        );
+        assert_eq!(
+            one_token(identifier_4),
+            Token::Identifier(identifier_4.to_owned())
+        );
+        assert_eq!(
+            one_token(identifier_5),
+            Token::Identifier(identifier_5.to_owned())
+        );
+        assert_eq!(
+            one_token(identifier_6),
+            Token::Identifier(identifier_6.to_owned())
+        );
     }
-
 
     #[test]
     fn test_complete_code() {
-        let code =
-            "
+        let code = "
 struct X {
     a: int,
     b: float,
@@ -359,7 +455,7 @@ fn main()
             .map(|pt| pt.token)
             .collect();
 
-        let expected = vec!(
+        let expected = vec![
             tokens::Token::Keyword(tokens::KeywordToken::Struct),
             tokens::Token::Identifier("X".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
@@ -432,10 +528,8 @@ fn main()
             tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis),
             tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
-        );
+        ];
 
         assert_eq!(tokens, expected);
     }
 }
-
-

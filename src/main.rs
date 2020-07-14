@@ -1,4 +1,4 @@
-use ::parser::{code_to_ast, run_ast};
+use parser::{code_to_ast, run_ast};
 
 fn main() {
     let code = std::fs::read_to_string("example2.txt").unwrap();

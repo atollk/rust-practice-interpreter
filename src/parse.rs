@@ -1,13 +1,17 @@
-pub fn parse_program(tokens: &[crate::tokenize::tokens::PositionalToken]) -> Result<parsetree::Program, parsetree::ParseError> {
+pub fn parse_program(
+    tokens: &[crate::tokenize::tokens::PositionalToken],
+) -> Result<parsetree::Program, parsetree::ParseError> {
     use parsetree::Node;
     let (prog, size) = parsetree::Program::parse_from(tokens)?;
     if size != tokens.len() {
-        Err(parsetree::ParseError { line: tokens[size].line, column: tokens[size].column })
+        Err(parsetree::ParseError {
+            line: tokens[size].line,
+            column: tokens[size].column,
+        })
     } else {
         Ok(prog)
     }
 }
-
 
 pub mod parsetree {
     use crate::tokenize::tokens;
@@ -20,19 +24,32 @@ pub mod parsetree {
 
     impl ParseError {
         fn from_token(token: &tokens::PositionalToken) -> ParseError {
-            ParseError { line: token.line, column: token.column }
+            ParseError {
+                line: token.line,
+                column: token.column,
+            }
         }
     }
 
-    fn get_postoken(tokens: &[tokens::PositionalToken], index: usize) -> Result<&tokens::PositionalToken, ParseError> {
-        tokens.get(index).ok_or(ParseError::from_token(tokens.last().unwrap()))
+    fn get_postoken(
+        tokens: &[tokens::PositionalToken],
+        index: usize,
+    ) -> Result<&tokens::PositionalToken, ParseError> {
+        tokens
+            .get(index)
+            .ok_or(ParseError::from_token(tokens.last().unwrap()))
     }
 
-    fn get_token(tokens: &[tokens::PositionalToken], index: usize) -> Result<&tokens::Token, ParseError> {
+    fn get_token(
+        tokens: &[tokens::PositionalToken],
+        index: usize,
+    ) -> Result<&tokens::Token, ParseError> {
         Ok(&get_postoken(tokens, index)?.token)
     }
 
-    fn parse_statement_block(tokens: &[tokens::PositionalToken]) -> Result<(Vec<Statement>, usize), ParseError> {
+    fn parse_statement_block(
+        tokens: &[tokens::PositionalToken],
+    ) -> Result<(Vec<Statement>, usize), ParseError> {
         assert!(!tokens.is_empty());
         if *get_token(tokens, 0)? != tokens::Token::Symbol(tokens::SymbolToken::LeftBrace) {
             return Err(ParseError::from_token(&tokens[0]));
@@ -60,7 +77,10 @@ pub mod parsetree {
         Ok((block, index + 1))
     }
 
-    fn parse_join_exactly<T: Node<T>>(tokens: &[tokens::PositionalToken], separator: tokens::Token) -> Result<Vec<T>, ParseError> {
+    fn parse_join_exactly<T: Node<T>>(
+        tokens: &[tokens::PositionalToken],
+        separator: tokens::Token,
+    ) -> Result<Vec<T>, ParseError> {
         if tokens.is_empty() {
             return Ok(Vec::new());
         }
@@ -96,15 +116,15 @@ pub mod parsetree {
                 Ok(node)
             } else {
                 let token = tokens.last().unwrap();
-                Err(ParseError { line: token.line, column: token.column })
+                Err(ParseError {
+                    line: token.line,
+                    column: token.column,
+                })
             }
         }
     }
 
-
-    #[derive(Debug)]
-    #[derive(std::cmp::PartialEq)]
-    #[derive(Clone)]
+    #[derive(Debug, std::cmp::PartialEq, Clone)]
     pub struct Program {
         pub structs: Vec<Struct>,
         pub functions: Vec<Function>,
@@ -112,7 +132,10 @@ pub mod parsetree {
 
     impl Node<Program> for Program {
         fn parse_from(tokens: &[tokens::PositionalToken]) -> Result<(Program, usize), ParseError> {
-            let mut program = Program { structs: Vec::new(), functions: Vec::new() };
+            let mut program = Program {
+                structs: Vec::new(),
+                functions: Vec::new(),
+            };
             let mut token_index = 0;
             while token_index < tokens.len() {
                 let token = &tokens[token_index];
@@ -132,10 +155,7 @@ pub mod parsetree {
         }
     }
 
-
-    #[derive(Debug)]
-    #[derive(std::cmp::PartialEq)]
-    #[derive(Clone)]
+    #[derive(Debug, std::cmp::PartialEq, Clone)]
     pub struct Variable {
         pub name: String,
         pub typ: Type,
@@ -166,23 +186,20 @@ pub mod parsetree {
                 tokens::Token::Keyword(tokens::KeywordToken::Float) => Type::Float,
                 tokens::Token::Keyword(tokens::KeywordToken::String) => Type::String,
                 tokens::Token::Identifier(x) => Type::Struct(x.clone()),
-                _ => return Err(ParseError::from_token(&tokens[2]))
+                _ => return Err(ParseError::from_token(&tokens[2])),
             };
 
             Ok((var, 3))
         }
     }
 
-
-    #[derive(Debug)]
-    #[derive(std::cmp::PartialEq)]
-    #[derive(Clone)]
+    #[derive(Debug, std::cmp::PartialEq, Clone)]
     pub enum Type {
         Bool,
         Integer,
         Float,
         String,
-        Struct(String)
+        Struct(String),
     }
 
     impl Type {
@@ -192,15 +209,12 @@ pub mod parsetree {
                 tokens::Token::Keyword(tokens::KeywordToken::Int) => Ok(Type::Integer),
                 tokens::Token::Keyword(tokens::KeywordToken::Float) => Ok(Type::Float),
                 tokens::Token::Keyword(tokens::KeywordToken::String) => Ok(Type::String),
-                _ => Err(ParseError::from_token(token))
+                _ => Err(ParseError::from_token(token)),
             }
         }
     }
 
-
-    #[derive(Debug)]
-    #[derive(std::cmp::PartialEq)]
-    #[derive(Clone)]
+    #[derive(Debug, std::cmp::PartialEq, Clone)]
     pub struct Struct {
         pub name: String,
         pub fields: Vec<Variable>,
@@ -232,22 +246,28 @@ pub mod parsetree {
             };
 
             // struct_field* }
-            let fields = parse_join_exactly(&tokens[3..total_size], tokens::Token::Symbol(tokens::SymbolToken::Comma))?;
-            if *get_token(tokens, total_size)? != tokens::Token::Symbol(tokens::SymbolToken::RightBrace) {
+            let fields = parse_join_exactly(
+                &tokens[3..total_size],
+                tokens::Token::Symbol(tokens::SymbolToken::Comma),
+            )?;
+            if *get_token(tokens, total_size)?
+                != tokens::Token::Symbol(tokens::SymbolToken::RightBrace)
+            {
                 return Err(ParseError::from_token(&tokens[total_size]));
             }
 
             Ok((
-                Struct { name, fields, position: (tokens[0].line, tokens[0].column) },
-                total_size + 1
+                Struct {
+                    name,
+                    fields,
+                    position: (tokens[0].line, tokens[0].column),
+                },
+                total_size + 1,
             ))
         }
     }
 
-
-    #[derive(Debug)]
-    #[derive(std::cmp::PartialEq)]
-    #[derive(Clone)]
+    #[derive(Debug, std::cmp::PartialEq, Clone)]
     pub struct Function {
         pub name: String,
         pub parameters: Vec<Variable>,
@@ -267,7 +287,9 @@ pub mod parsetree {
                 if *get_token(tokens, 0)? != tokens::Token::Keyword(tokens::KeywordToken::Fn) {
                     return Err(ParseError::from_token(&tokens[0]));
                 }
-                if *get_token(tokens, 2)? != tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis) {
+                if *get_token(tokens, 2)?
+                    != tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis)
+                {
                     return Err(ParseError::from_token(&tokens[2]));
                 }
                 if let tokens::Token::Identifier(name) = get_token(tokens, 1)? {
@@ -280,10 +302,11 @@ pub mod parsetree {
 
             // args*)
             let parameters = {
-                let (parameters, parameters_size) =
-                    Function::parse_parameters(&tokens[index..])?;
+                let (parameters, parameters_size) = Function::parse_parameters(&tokens[index..])?;
                 index += parameters_size;
-                if *get_token(tokens, index)? != tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis) {
+                if *get_token(tokens, index)?
+                    != tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis)
+                {
                     return Err(ParseError::from_token(&tokens[index]));
                 }
                 index += 1;
@@ -292,7 +315,9 @@ pub mod parsetree {
 
             // -> returntype
             let return_type = {
-                if *get_token(tokens, index)? == tokens::Token::Symbol(tokens::SymbolToken::RightArrow) {
+                if *get_token(tokens, index)?
+                    == tokens::Token::Symbol(tokens::SymbolToken::RightArrow)
+                {
                     let ret = Type::parse_from(get_postoken(tokens, index + 1)?)?;
                     index += 2;
                     Some(ret)
@@ -303,7 +328,8 @@ pub mod parsetree {
 
             // with localvar*
             let local_variables = {
-                if *get_token(tokens, index)? == tokens::Token::Keyword(tokens::KeywordToken::With) {
+                if *get_token(tokens, index)? == tokens::Token::Keyword(tokens::KeywordToken::With)
+                {
                     index += 1;
                     let (local_vars, size) = Function::parse_with(&tokens[index..])?;
                     index += size;
@@ -329,17 +355,24 @@ pub mod parsetree {
                     body,
                     position: (tokens[0].line, tokens[0].column),
                 },
-                index
+                index,
             ))
         }
     }
 
     impl Function {
-        fn parse_parameters(tokens: &[tokens::PositionalToken]) -> Result<(Vec<Variable>, usize), ParseError> {
+        fn parse_parameters(
+            tokens: &[tokens::PositionalToken],
+        ) -> Result<(Vec<Variable>, usize), ParseError> {
             let end_index = tokens
                 .iter()
-                .position(|token| token.token == tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis))
-                .ok_or(ParseError { line: tokens.last().unwrap().line, column: tokens.last().unwrap().column })?;
+                .position(|token| {
+                    token.token == tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis)
+                })
+                .ok_or(ParseError {
+                    line: tokens.last().unwrap().line,
+                    column: tokens.last().unwrap().column,
+                })?;
             let parameters = parse_join_exactly(
                 &tokens[..end_index],
                 tokens::Token::Symbol(tokens::SymbolToken::Comma),
@@ -347,11 +380,18 @@ pub mod parsetree {
             Ok((parameters, end_index))
         }
 
-        fn parse_with(tokens: &[tokens::PositionalToken]) -> Result<(Vec<Variable>, usize), ParseError> {
+        fn parse_with(
+            tokens: &[tokens::PositionalToken],
+        ) -> Result<(Vec<Variable>, usize), ParseError> {
             let end_index = tokens
                 .iter()
-                .position(|token| token.token == tokens::Token::Symbol(tokens::SymbolToken::LeftBrace))
-                .ok_or(ParseError { line: tokens.last().unwrap().line, column: tokens.last().unwrap().column })?;
+                .position(|token| {
+                    token.token == tokens::Token::Symbol(tokens::SymbolToken::LeftBrace)
+                })
+                .ok_or(ParseError {
+                    line: tokens.last().unwrap().line,
+                    column: tokens.last().unwrap().column,
+                })?;
             let variables = parse_join_exactly::<Variable>(
                 &tokens[..end_index],
                 tokens::Token::Symbol(tokens::SymbolToken::Comma),
@@ -360,10 +400,7 @@ pub mod parsetree {
         }
     }
 
-
-    #[derive(Debug)]
-    #[derive(std::cmp::PartialEq)]
-    #[derive(Clone)]
+    #[derive(Debug, std::cmp::PartialEq, Clone)]
     pub enum Statement {
         IfElse(IfElseStatement),
         While(WhileStatement),
@@ -373,7 +410,9 @@ pub mod parsetree {
     }
 
     impl Node<Statement> for Statement {
-        fn parse_from(tokens: &[tokens::PositionalToken]) -> Result<(Statement, usize), ParseError> {
+        fn parse_from(
+            tokens: &[tokens::PositionalToken],
+        ) -> Result<(Statement, usize), ParseError> {
             assert!(!tokens.is_empty());
 
             match get_token(tokens, 0)? {
@@ -391,7 +430,9 @@ pub mod parsetree {
                 }
                 tokens::Token::Identifier(_) => {
                     let (expr, size) = Expression::parse_from(tokens)?;
-                    if let Ok(tokens::Token::Symbol(tokens::SymbolToken::Semicolon)) = get_token(tokens, size) {
+                    if let Ok(tokens::Token::Symbol(tokens::SymbolToken::Semicolon)) =
+                        get_token(tokens, size)
+                    {
                         Ok((Statement::Expression(expr), size + 1))
                     } else {
                         let (statement, size) = AssignStatement::parse_from(tokens)?;
@@ -400,7 +441,9 @@ pub mod parsetree {
                 }
                 _ => {
                     let (statement, size) = Expression::parse_from(tokens)?;
-                    if *get_token(tokens, size)? != tokens::Token::Symbol(tokens::SymbolToken::Semicolon) {
+                    if *get_token(tokens, size)?
+                        != tokens::Token::Symbol(tokens::SymbolToken::Semicolon)
+                    {
                         return Err(ParseError::from_token(&tokens[size]));
                     }
                     Ok((Statement::Expression(statement), size + 1))
@@ -409,9 +452,7 @@ pub mod parsetree {
         }
     }
 
-    #[derive(Debug)]
-    #[derive(std::cmp::PartialEq)]
-    #[derive(Clone)]
+    #[derive(Debug, std::cmp::PartialEq, Clone)]
     pub struct IfElseStatement {
         pub condition: Expression,
         pub if_block: Vec<Statement>,
@@ -420,7 +461,9 @@ pub mod parsetree {
     }
 
     impl Node<IfElseStatement> for IfElseStatement {
-        fn parse_from(tokens: &[tokens::PositionalToken]) -> Result<(IfElseStatement, usize), ParseError> {
+        fn parse_from(
+            tokens: &[tokens::PositionalToken],
+        ) -> Result<(IfElseStatement, usize), ParseError> {
             assert!(!tokens.is_empty());
             let mut index;
 
@@ -443,7 +486,9 @@ pub mod parsetree {
 
             // else { .. }
             let else_block = {
-                if let Ok(tokens::Token::Keyword(tokens::KeywordToken::Else)) = get_token(tokens, index) {
+                if let Ok(tokens::Token::Keyword(tokens::KeywordToken::Else)) =
+                    get_token(tokens, index)
+                {
                     index += 1;
                     let (else_block, size) = parse_statement_block(&tokens[index..])?;
                     index += size;
@@ -453,24 +498,19 @@ pub mod parsetree {
                 }
             };
 
-            Ok(
-                (
-                    IfElseStatement {
-                        condition,
-                        if_block,
-                        else_block,
-                        position: (tokens[0].line, tokens[0].column),
-                    },
-                    index
-                )
-            )
+            Ok((
+                IfElseStatement {
+                    condition,
+                    if_block,
+                    else_block,
+                    position: (tokens[0].line, tokens[0].column),
+                },
+                index,
+            ))
         }
     }
 
-
-    #[derive(Debug)]
-    #[derive(std::cmp::PartialEq)]
-    #[derive(Clone)]
+    #[derive(Debug, std::cmp::PartialEq, Clone)]
     pub struct WhileStatement {
         pub condition: Expression,
         pub body: Vec<Statement>,
@@ -478,7 +518,9 @@ pub mod parsetree {
     }
 
     impl Node<WhileStatement> for WhileStatement {
-        fn parse_from(tokens: &[tokens::PositionalToken]) -> Result<(WhileStatement, usize), ParseError> {
+        fn parse_from(
+            tokens: &[tokens::PositionalToken],
+        ) -> Result<(WhileStatement, usize), ParseError> {
             assert!(!tokens.is_empty());
             let mut index;
 
@@ -499,52 +541,58 @@ pub mod parsetree {
                 body
             };
 
-            Ok(
-                (
-                    WhileStatement {
-                        condition,
-                        body,
-                        position: (tokens[0].line, tokens[0].column),
-                    },
-                    index
-                )
-            )
+            Ok((
+                WhileStatement {
+                    condition,
+                    body,
+                    position: (tokens[0].line, tokens[0].column),
+                },
+                index,
+            ))
         }
     }
 
-    #[derive(Debug)]
-    #[derive(std::cmp::PartialEq)]
-    #[derive(Clone)]
+    #[derive(Debug, std::cmp::PartialEq, Clone)]
     pub struct ReturnStatement {
         pub expression: Option<Expression>,
         pub position: (usize, usize),
     }
 
     impl Node<ReturnStatement> for ReturnStatement {
-        fn parse_from(tokens: &[tokens::PositionalToken]) -> Result<(ReturnStatement, usize), ParseError> {
+        fn parse_from(
+            tokens: &[tokens::PositionalToken],
+        ) -> Result<(ReturnStatement, usize), ParseError> {
             assert!(!tokens.is_empty());
 
             if *get_token(tokens, 0)? != tokens::Token::Keyword(tokens::KeywordToken::Return) {
                 return Err(ParseError::from_token(&tokens[0]));
             }
 
-            let (expr, size) = if *get_token(tokens, 1)? == tokens::Token::Symbol(tokens::SymbolToken::Semicolon) {
+            let (expr, size) = if *get_token(tokens, 1)?
+                == tokens::Token::Symbol(tokens::SymbolToken::Semicolon)
+            {
                 (None, 2)
             } else {
                 let (expr, size) = Expression::parse_from(&tokens[1..])?;
-                if *get_token(tokens, size + 1)? != tokens::Token::Symbol(tokens::SymbolToken::Semicolon) {
+                if *get_token(tokens, size + 1)?
+                    != tokens::Token::Symbol(tokens::SymbolToken::Semicolon)
+                {
                     return Err(ParseError::from_token(&tokens[size + 1]));
                 }
                 (Some(expr), size + 2)
             };
 
-            Ok((ReturnStatement { expression: expr, position: (tokens[0].line, tokens[0].column) }, size))
+            Ok((
+                ReturnStatement {
+                    expression: expr,
+                    position: (tokens[0].line, tokens[0].column),
+                },
+                size,
+            ))
         }
     }
 
-    #[derive(Debug)]
-    #[derive(std::cmp::PartialEq)]
-    #[derive(Clone)]
+    #[derive(Debug, std::cmp::PartialEq, Clone)]
     pub struct AssignStatement {
         pub target: AtomExpression,
         pub value: Expression,
@@ -552,7 +600,9 @@ pub mod parsetree {
     }
 
     impl Node<AssignStatement> for AssignStatement {
-        fn parse_from(tokens: &[tokens::PositionalToken]) -> Result<(AssignStatement, usize), ParseError> {
+        fn parse_from(
+            tokens: &[tokens::PositionalToken],
+        ) -> Result<(AssignStatement, usize), ParseError> {
             assert!(!tokens.is_empty());
             let mut index = 0;
 
@@ -567,7 +617,6 @@ pub mod parsetree {
             }
             index += 1;
 
-
             // expression ;
             if index >= tokens.len() {
                 return Err(ParseError::from_token(tokens.last().unwrap()));
@@ -581,71 +630,69 @@ pub mod parsetree {
                 return Err(ParseError::from_token(&tokens[index]));
             }
 
-            Ok(
-                (
-                    AssignStatement {
-                        target,
-                        value,
-                        position: (tokens[0].line, tokens[0].column),
-                    },
-                    index + 1
-                )
-            )
+            Ok((
+                AssignStatement {
+                    target,
+                    value,
+                    position: (tokens[0].line, tokens[0].column),
+                },
+                index + 1,
+            ))
         }
     }
 
-
-    #[derive(Debug)]
-    #[derive(std::cmp::PartialEq)]
-    #[derive(Clone)]
+    #[derive(Debug, std::cmp::PartialEq, Clone)]
     pub struct Expression {
         pub value: ExpressionValue,
         pub position: (usize, usize),
     }
 
-
-    #[derive(Debug)]
-    #[derive(std::cmp::PartialEq)]
-    #[derive(Clone)]
+    #[derive(Debug, std::cmp::PartialEq, Clone)]
     pub enum ExpressionValue {
         Literal(LiteralExpression),
         Atom(AtomExpression),
         Call(CallExpression),
     }
 
-
     impl Node<Expression> for Expression {
-        fn parse_from(tokens: &[tokens::PositionalToken]) -> Result<(Expression, usize), ParseError> {
+        fn parse_from(
+            tokens: &[tokens::PositionalToken],
+        ) -> Result<(Expression, usize), ParseError> {
             assert!(!tokens.is_empty());
 
             // Literal
             if let tokens::Token::Literal(_) = &get_token(tokens, 0)? {
                 let (expr, size) = LiteralExpression::parse_from(tokens)?;
-                return Ok(
-                    (
-                        Expression { value: ExpressionValue::Literal(expr), position: (tokens[0].line, tokens[0].column) },
-                        size
-                    )
-                );
+                return Ok((
+                    Expression {
+                        value: ExpressionValue::Literal(expr),
+                        position: (tokens[0].line, tokens[0].column),
+                    },
+                    size,
+                ));
             }
 
             if let tokens::Token::Identifier(_) = &get_token(tokens, 0)? {
-                if let Ok(tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis)) = &get_token(tokens, 1) {
+                if let Ok(tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis)) =
+                    &get_token(tokens, 1)
+                {
                     let (expr, size) = CallExpression::parse_from(tokens)?;
-                    return Ok(
-                        (
-                            Expression { value: ExpressionValue::Call(expr), position: (tokens[0].line, tokens[0].column) },
-                            size
-                        )
-                    );
+                    return Ok((
+                        Expression {
+                            value: ExpressionValue::Call(expr),
+                            position: (tokens[0].line, tokens[0].column),
+                        },
+                        size,
+                    ));
                 } else {
                     let (expr, size) = AtomExpression::parse_from(tokens)?;
-                    return Ok(
-                        (
-                            Expression { value: ExpressionValue::Atom(expr), position: (tokens[0].line, tokens[0].column) },
-                            size
-                        )
-                    );
+                    return Ok((
+                        Expression {
+                            value: ExpressionValue::Atom(expr),
+                            position: (tokens[0].line, tokens[0].column),
+                        },
+                        size,
+                    ));
                 }
             } else {
                 Err(ParseError::from_token(&tokens[0]))
@@ -653,10 +700,7 @@ pub mod parsetree {
         }
     }
 
-
-    #[derive(Debug)]
-    #[derive(std::cmp::PartialEq)]
-    #[derive(Clone)]
+    #[derive(Debug, std::cmp::PartialEq, Clone)]
     pub enum LiteralExpression {
         Bool(bool),
         Int(i32),
@@ -665,32 +709,35 @@ pub mod parsetree {
     }
 
     impl Node<LiteralExpression> for LiteralExpression {
-        fn parse_from(tokens: &[tokens::PositionalToken]) -> Result<(LiteralExpression, usize), ParseError> {
+        fn parse_from(
+            tokens: &[tokens::PositionalToken],
+        ) -> Result<(LiteralExpression, usize), ParseError> {
             assert!(!tokens.is_empty());
             if let tokens::Token::Literal(lit) = get_token(tokens, 0)? {
                 match lit {
                     tokens::LiteralToken::Bool(b) => Ok((LiteralExpression::Bool(*b), 1)),
                     tokens::LiteralToken::Integer(i) => Ok((LiteralExpression::Int(*i), 1)),
                     tokens::LiteralToken::Float(f) => Ok((LiteralExpression::Float(*f), 1)),
-                    tokens::LiteralToken::String(s) => Ok((LiteralExpression::String(s.clone()), 1)),
+                    tokens::LiteralToken::String(s) => {
+                        Ok((LiteralExpression::String(s.clone()), 1))
+                    }
                 }
             } else {
-                Err(ParseError::from_token(
-                    &tokens[0]))
+                Err(ParseError::from_token(&tokens[0]))
             }
         }
     }
 
-    #[derive(Debug)]
-    #[derive(std::cmp::PartialEq)]
-    #[derive(Clone)]
+    #[derive(Debug, std::cmp::PartialEq, Clone)]
     pub struct AtomExpression {
         pub var_name: String,
         pub fields: Vec<String>,
     }
 
     impl Node<AtomExpression> for AtomExpression {
-        fn parse_from(tokens: &[tokens::PositionalToken]) -> Result<(AtomExpression, usize), ParseError> {
+        fn parse_from(
+            tokens: &[tokens::PositionalToken],
+        ) -> Result<(AtomExpression, usize), ParseError> {
             assert!(!tokens.is_empty());
             let mut index = 0;
 
@@ -707,7 +754,9 @@ pub mod parsetree {
             // (.field)*
             let fields = {
                 let mut fields = Vec::new();
-                while let Ok(tokens::Token::Symbol(tokens::SymbolToken::Period)) = get_token(tokens, index) {
+                while let Ok(tokens::Token::Symbol(tokens::SymbolToken::Period)) =
+                    get_token(tokens, index)
+                {
                     index += 1;
                     if let tokens::Token::Identifier(name) = get_token(tokens, index)? {
                         index += 1;
@@ -723,9 +772,7 @@ pub mod parsetree {
         }
     }
 
-    #[derive(Debug)]
-    #[derive(std::cmp::PartialEq)]
-    #[derive(Clone)]
+    #[derive(Debug, std::cmp::PartialEq, Clone)]
     pub struct CallExpression {
         pub func_name: String,
         pub args: Vec<Expression>,
@@ -733,7 +780,9 @@ pub mod parsetree {
     }
 
     impl Node<CallExpression> for CallExpression {
-        fn parse_from(tokens: &[tokens::PositionalToken]) -> Result<(CallExpression, usize), ParseError> {
+        fn parse_from(
+            tokens: &[tokens::PositionalToken],
+        ) -> Result<(CallExpression, usize), ParseError> {
             assert!(!tokens.is_empty());
             let mut index = 0;
 
@@ -748,7 +797,9 @@ pub mod parsetree {
             };
 
             // (arg? (, args)*)
-            if *get_token(tokens, index)? != tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis) {
+            if *get_token(tokens, index)?
+                != tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis)
+            {
                 return Err(ParseError::from_token(&tokens[index]));
             }
             index += 1;
@@ -761,14 +812,18 @@ pub mod parsetree {
                     } else {
                         break;
                     }
-                    if *get_token(tokens, index)? != tokens::Token::Symbol(tokens::SymbolToken::Comma) {
+                    if *get_token(tokens, index)?
+                        != tokens::Token::Symbol(tokens::SymbolToken::Comma)
+                    {
                         break;
                     }
                     index += 1;
                 }
                 args
             };
-            if *get_token(tokens, index)? != tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis) {
+            if *get_token(tokens, index)?
+                != tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis)
+            {
                 return Err(ParseError::from_token(&tokens[index]));
             }
             index += 1;
@@ -776,7 +831,9 @@ pub mod parsetree {
             // (.field)*
             let fields = {
                 let mut fields = Vec::new();
-                while let Ok(tokens::Token::Symbol(tokens::SymbolToken::Period)) = get_token(tokens, index) {
+                while let Ok(tokens::Token::Symbol(tokens::SymbolToken::Period)) =
+                    get_token(tokens, index)
+                {
                     index += 1;
                     if let tokens::Token::Identifier(name) = get_token(tokens, index)? {
                         index += 1;
@@ -788,51 +845,59 @@ pub mod parsetree {
                 fields
             };
 
-            Ok((CallExpression { func_name, args, fields }, index))
+            Ok((
+                CallExpression {
+                    func_name,
+                    args,
+                    fields,
+                },
+                index,
+            ))
         }
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use crate::tokenize::tokens;
     use super::parsetree::*;
+    use crate::tokenize::tokens;
 
     fn give_tokens_positions(tokens: Vec<tokens::Token>) -> Vec<tokens::PositionalToken> {
         tokens
             .into_iter()
             .enumerate()
-            .map(|(column, token)| tokens::PositionalToken { token, line: 0, column })
+            .map(|(column, token)| tokens::PositionalToken {
+                token,
+                line: 0,
+                column,
+            })
             .collect()
     }
 
     #[test]
     fn test_atom_expr() {
         // foo
-        let tokens1 = vec!(
-            tokens::Token::Identifier("foo".to_owned())
-        );
+        let tokens1 = vec![tokens::Token::Identifier("foo".to_owned())];
         // foo.bar.baz
-        let tokens2 = vec!(
+        let tokens2 = vec![
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::Period),
             tokens::Token::Identifier("bar".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::Period),
-            tokens::Token::Identifier("baz".to_owned())
-        );
+            tokens::Token::Identifier("baz".to_owned()),
+        ];
         // foo bar
-        let tokens3 = vec!(
+        let tokens3 = vec![
             tokens::Token::Identifier("foo".to_owned()),
-            tokens::Token::Identifier("bar".to_owned())
-        );
+            tokens::Token::Identifier("bar".to_owned()),
+        ];
         // foo.(baz
-        let tokens4 = vec!(
+        let tokens4 = vec![
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::Period),
             tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
-            tokens::Token::Identifier("baz".to_owned())
-        );
+            tokens::Token::Identifier("baz".to_owned()),
+        ];
 
         let expr1 = AtomExpression {
             var_name: "foo".to_owned(),
@@ -840,7 +905,7 @@ mod tests {
         };
         let expr2 = AtomExpression {
             var_name: "foo".to_owned(),
-            fields: vec!("bar".to_owned(), "baz".to_owned()),
+            fields: vec!["bar".to_owned(), "baz".to_owned()],
         };
         let expr3 = AtomExpression {
             var_name: "foo".to_owned(),
@@ -865,30 +930,30 @@ mod tests {
     #[test]
     fn test_call_expr() {
         // foo()
-        let tokens1 = vec!(
+        let tokens1 = vec![
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
             tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis),
-        );
+        ];
         // foo() bar
-        let tokens2 = vec!(
+        let tokens2 = vec![
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
             tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis),
             tokens::Token::Identifier("bar".to_owned()),
-        );
+        ];
         // foo(
-        let tokens3 = vec!(
+        let tokens3 = vec![
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
-        );
+        ];
         // foo(,)
-        let tokens4 = vec!(
+        let tokens4 = vec![
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
             tokens::Token::Symbol(tokens::SymbolToken::Comma),
             tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis),
-        );
+        ];
 
         let expr1 = CallExpression {
             func_name: "foo".to_owned(),
@@ -918,26 +983,20 @@ mod tests {
     #[test]
     fn test_literal_expr() {
         // true
-        let tokens1 = vec!(
-            tokens::Token::Literal(tokens::LiteralToken::Bool(true))
-        );
+        let tokens1 = vec![tokens::Token::Literal(tokens::LiteralToken::Bool(true))];
         // 12
-        let tokens2 = vec!(
-            tokens::Token::Literal(tokens::LiteralToken::Integer(12))
-        );
+        let tokens2 = vec![tokens::Token::Literal(tokens::LiteralToken::Integer(12))];
         // 128.123
-        let tokens3 = vec!(
-            tokens::Token::Literal(tokens::LiteralToken::Float(128.123))
-        );
+        let tokens3 = vec![tokens::Token::Literal(tokens::LiteralToken::Float(128.123))];
         // "foo"
-        let tokens4 = vec!(
-            tokens::Token::Literal(tokens::LiteralToken::String("foo".to_owned()))
-        );
+        let tokens4 = vec![tokens::Token::Literal(tokens::LiteralToken::String(
+            "foo".to_owned(),
+        ))];
         // true 12
-        let tokens5 = vec!(
+        let tokens5 = vec![
             tokens::Token::Literal(tokens::LiteralToken::Bool(true)),
-            tokens::Token::Literal(tokens::LiteralToken::Integer(12))
-        );
+            tokens::Token::Literal(tokens::LiteralToken::Integer(12)),
+        ];
 
         let expr1 = LiteralExpression::Bool(true);
         let expr2 = LiteralExpression::Int(12);
@@ -967,24 +1026,22 @@ mod tests {
     #[test]
     fn test_expression() {
         // foo.bar
-        let tokens1 = vec!(
+        let tokens1 = vec![
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::Period),
-            tokens::Token::Identifier("bar".to_owned())
-        );
+            tokens::Token::Identifier("bar".to_owned()),
+        ];
         // foo() bar
-        let tokens2 = vec!(
+        let tokens2 = vec![
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
             tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis),
             tokens::Token::Identifier("bar".to_owned()),
-        );
+        ];
         // 128.123
-        let tokens3 = vec!(
-            tokens::Token::Literal(tokens::LiteralToken::Float(128.123))
-        );
+        let tokens3 = vec![tokens::Token::Literal(tokens::LiteralToken::Float(128.123))];
         // foo(a, b(), 2, c.d).e
-        let tokens4 = vec!(
+        let tokens4 = vec![
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
             tokens::Token::Identifier("a".to_owned()),
@@ -1001,25 +1058,21 @@ mod tests {
             tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis),
             tokens::Token::Symbol(tokens::SymbolToken::Period),
             tokens::Token::Identifier("e".to_owned()),
-        );
+        ];
 
         let expr1 = Expression {
-            value: ExpressionValue::Atom(
-                AtomExpression {
-                    var_name: "foo".to_owned(),
-                    fields: vec!("bar".to_owned()),
-                }
-            ),
+            value: ExpressionValue::Atom(AtomExpression {
+                var_name: "foo".to_owned(),
+                fields: vec!["bar".to_owned()],
+            }),
             position: (0, 0),
         };
         let expr2 = Expression {
-            value: ExpressionValue::Call(
-                CallExpression {
-                    func_name: "foo".to_owned(),
-                    args: Vec::new(),
-                    fields: Vec::new(),
-                }
-            ),
+            value: ExpressionValue::Call(CallExpression {
+                func_name: "foo".to_owned(),
+                args: Vec::new(),
+                fields: Vec::new(),
+            }),
             position: (0, 0),
         };
         let expr3 = Expression {
@@ -1027,48 +1080,38 @@ mod tests {
             position: (0, 0),
         };
         let expr4 = Expression {
-            value: ExpressionValue::Call(
-                CallExpression {
-                    func_name: "foo".to_owned(),
-                    args: vec!(
-                        Expression {
-                            value: ExpressionValue::Atom(
-                                AtomExpression {
-                                    var_name: "a".to_owned(),
-                                    fields: Vec::new(),
-                                }
-                            ),
-                            position: (0, 2),
-                        },
-                        Expression {
-                            value: ExpressionValue::Call(
-                                CallExpression {
-                                    func_name: "b".to_owned(),
-                                    args: Vec::new(),
-                                    fields: Vec::new(),
-                                }
-                            ),
-                            position: (0, 4),
-                        },
-                        Expression {
-                            value: ExpressionValue::Literal(
-                                LiteralExpression::Int(2)
-                            ),
-                            position: (0, 8),
-                        },
-                        Expression {
-                            value: ExpressionValue::Atom(
-                                AtomExpression {
-                                    var_name: "c".to_owned(),
-                                    fields: vec!("d".to_owned()),
-                                }
-                            ),
-                            position: (0, 10),
-                        },
-                    ),
-                    fields: vec!("e".to_owned()),
-                }
-            ),
+            value: ExpressionValue::Call(CallExpression {
+                func_name: "foo".to_owned(),
+                args: vec![
+                    Expression {
+                        value: ExpressionValue::Atom(AtomExpression {
+                            var_name: "a".to_owned(),
+                            fields: Vec::new(),
+                        }),
+                        position: (0, 2),
+                    },
+                    Expression {
+                        value: ExpressionValue::Call(CallExpression {
+                            func_name: "b".to_owned(),
+                            args: Vec::new(),
+                            fields: Vec::new(),
+                        }),
+                        position: (0, 4),
+                    },
+                    Expression {
+                        value: ExpressionValue::Literal(LiteralExpression::Int(2)),
+                        position: (0, 8),
+                    },
+                    Expression {
+                        value: ExpressionValue::Atom(AtomExpression {
+                            var_name: "c".to_owned(),
+                            fields: vec!["d".to_owned()],
+                        }),
+                        position: (0, 10),
+                    },
+                ],
+                fields: vec!["e".to_owned()],
+            }),
             position: (0, 0),
         };
         let result1 = Expression::parse_from(&give_tokens_positions(tokens1));
@@ -1090,14 +1133,14 @@ mod tests {
     #[test]
     fn test_assign_stmt() {
         // foo = bar;
-        let tokens1 = vec!(
+        let tokens1 = vec![
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::Assign),
             tokens::Token::Identifier("bar".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
-        );
+        ];
         // foo.bar.baz = a.b; c
-        let tokens2 = vec!(
+        let tokens2 = vec![
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::Period),
             tokens::Token::Identifier("bar".to_owned()),
@@ -1109,26 +1152,26 @@ mod tests {
             tokens::Token::Identifier("b".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
             tokens::Token::Identifier("c".to_owned()),
-        );
+        ];
         // foo = bar
-        let tokens3 = vec!(
+        let tokens3 = vec![
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::Assign),
             tokens::Token::Identifier("bar".to_owned()),
-        );
+        ];
         // foo = bar(;
-        let tokens4 = vec!(
+        let tokens4 = vec![
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::Assign),
             tokens::Token::Identifier("bar".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
             tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
-        );
+        ];
         // foo =
-        let tokens5 = vec!(
+        let tokens5 = vec![
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::Assign),
-        );
+        ];
 
         let stmt1 = AssignStatement {
             target: AtomExpression {
@@ -1136,12 +1179,10 @@ mod tests {
                 fields: Vec::new(),
             },
             value: Expression {
-                value: ExpressionValue::Atom(
-                    AtomExpression {
-                        var_name: "bar".to_owned(),
-                        fields: Vec::new(),
-                    }
-                ),
+                value: ExpressionValue::Atom(AtomExpression {
+                    var_name: "bar".to_owned(),
+                    fields: Vec::new(),
+                }),
                 position: (0, 2),
             },
             position: (0, 0),
@@ -1149,20 +1190,17 @@ mod tests {
         let stmt2 = AssignStatement {
             target: AtomExpression {
                 var_name: "foo".to_owned(),
-                fields: vec!("bar".to_owned(), "baz".to_owned()),
+                fields: vec!["bar".to_owned(), "baz".to_owned()],
             },
             value: Expression {
-                value: ExpressionValue::Atom(
-                    AtomExpression {
-                        var_name: "a".to_owned(),
-                        fields: vec!("b".to_owned()),
-                    }
-                ),
+                value: ExpressionValue::Atom(AtomExpression {
+                    var_name: "a".to_owned(),
+                    fields: vec!["b".to_owned()],
+                }),
                 position: (0, 6),
             },
             position: (0, 0),
         };
-
 
         let result1 = AssignStatement::parse_from(&give_tokens_positions(tokens1));
         let result2 = AssignStatement::parse_from(&give_tokens_positions(tokens2));
@@ -1183,14 +1221,14 @@ mod tests {
     #[test]
     fn test_ifelse_stmt() {
         // if true {}
-        let tokens1 = vec!(
+        let tokens1 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::If),
             tokens::Token::Literal(tokens::LiteralToken::Bool(true)),
             tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
-        );
+        ];
         // if test(1) {} else {} 1
-        let tokens2 = vec!(
+        let tokens2 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::If),
             tokens::Token::Identifier("test".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
@@ -1202,9 +1240,9 @@ mod tests {
             tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
             tokens::Token::Literal(tokens::LiteralToken::Integer(1)),
-        );
+        ];
         // if true { "foo"; } else { x = y; }
-        let tokens3 = vec!(
+        let tokens3 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::If),
             tokens::Token::Literal(tokens::LiteralToken::Bool(true)),
             tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
@@ -1218,15 +1256,15 @@ mod tests {
             tokens::Token::Identifier("y".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
-        );
+        ];
         // if {}
-        let tokens4 = vec!(
+        let tokens4 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::If),
             tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
-        );
+        ];
         // if true { 1; } else { 2 }
-        let tokens5 = vec!(
+        let tokens5 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::If),
             tokens::Token::Literal(tokens::LiteralToken::Bool(true)),
             tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
@@ -1237,7 +1275,7 @@ mod tests {
             tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
             tokens::Token::Literal(tokens::LiteralToken::Integer(2)),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
-        );
+        ];
 
         let stmt1 = IfElseStatement {
             condition: Expression {
@@ -1250,18 +1288,14 @@ mod tests {
         };
         let stmt2 = IfElseStatement {
             condition: Expression {
-                value: ExpressionValue::Call(
-                    CallExpression {
-                        func_name: "test".to_owned(),
-                        args: vec!(
-                            Expression {
-                                value: ExpressionValue::Literal(LiteralExpression::Int(1)),
-                                position: (0, 3),
-                            }
-                        ),
-                        fields: Vec::new(),
-                    }
-                ),
+                value: ExpressionValue::Call(CallExpression {
+                    func_name: "test".to_owned(),
+                    args: vec![Expression {
+                        value: ExpressionValue::Literal(LiteralExpression::Int(1)),
+                        position: (0, 3),
+                    }],
+                    fields: Vec::new(),
+                }),
                 position: (0, 1),
             },
             if_block: Vec::new(),
@@ -1273,34 +1307,24 @@ mod tests {
                 value: ExpressionValue::Literal(LiteralExpression::Bool(true)),
                 position: (0, 1),
             },
-            if_block: vec!(
-                Statement::Expression(
-                    Expression {
-                        value: ExpressionValue::Literal(LiteralExpression::String("foo".to_owned())),
-                        position: (0, 3),
-                    }
-                )
-            ),
-            else_block: vec!(
-                Statement::Assign(
-                    AssignStatement {
-                        target: AtomExpression {
-                            var_name: "x".to_owned(),
-                            fields: Vec::new(),
-                        },
-                        value: Expression {
-                            value: ExpressionValue::Atom(
-                                AtomExpression {
-                                    var_name: "y".to_owned(),
-                                    fields: Vec::new(),
-                                }
-                            ),
-                            position: (0, 10),
-                        },
-                        position: (0, 8),
-                    }
-                )
-            ),
+            if_block: vec![Statement::Expression(Expression {
+                value: ExpressionValue::Literal(LiteralExpression::String("foo".to_owned())),
+                position: (0, 3),
+            })],
+            else_block: vec![Statement::Assign(AssignStatement {
+                target: AtomExpression {
+                    var_name: "x".to_owned(),
+                    fields: Vec::new(),
+                },
+                value: Expression {
+                    value: ExpressionValue::Atom(AtomExpression {
+                        var_name: "y".to_owned(),
+                        fields: Vec::new(),
+                    }),
+                    position: (0, 10),
+                },
+                position: (0, 8),
+            })],
             position: (0, 0),
         };
 
@@ -1324,14 +1348,14 @@ mod tests {
     #[test]
     fn test_while_stmt() {
         // while true {}
-        let tokens1 = vec!(
+        let tokens1 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::While),
             tokens::Token::Literal(tokens::LiteralToken::Bool(true)),
             tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
-        );
+        ];
         // while test(1) { "foo"; x = y; } 1
-        let tokens2 = vec!(
+        let tokens2 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::While),
             tokens::Token::Identifier("test".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
@@ -1346,21 +1370,21 @@ mod tests {
             tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
             tokens::Token::Literal(tokens::LiteralToken::Integer(1)),
-        );
+        ];
         // while {}
-        let tokens3 = vec!(
+        let tokens3 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::While),
             tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
-        );
+        ];
         // while true { 1 }
-        let tokens4 = vec!(
+        let tokens4 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::While),
             tokens::Token::Literal(tokens::LiteralToken::Bool(true)),
             tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
             tokens::Token::Literal(tokens::LiteralToken::Integer(1)),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
-        );
+        ];
 
         let stmt1 = WhileStatement {
             condition: Expression {
@@ -1372,46 +1396,36 @@ mod tests {
         };
         let stmt2 = WhileStatement {
             condition: Expression {
-                value: ExpressionValue::Call(
-                    CallExpression {
-                        func_name: "test".to_owned(),
-                        args: vec!(
-                            Expression {
-                                value: ExpressionValue::Literal(LiteralExpression::Int(1)),
-                                position: (0, 3),
-                            }
-                        ),
-                        fields: Vec::new(),
-                    }
-                ),
+                value: ExpressionValue::Call(CallExpression {
+                    func_name: "test".to_owned(),
+                    args: vec![Expression {
+                        value: ExpressionValue::Literal(LiteralExpression::Int(1)),
+                        position: (0, 3),
+                    }],
+                    fields: Vec::new(),
+                }),
                 position: (0, 1),
             },
-            body: vec!(
-                Statement::Expression(
-                    Expression {
-                        value: ExpressionValue::Literal(LiteralExpression::String("foo".to_owned())),
-                        position: (0, 6),
-                    }
-                ),
-                Statement::Assign(
-                    AssignStatement {
-                        target: AtomExpression {
-                            var_name: "x".to_owned(),
+            body: vec![
+                Statement::Expression(Expression {
+                    value: ExpressionValue::Literal(LiteralExpression::String("foo".to_owned())),
+                    position: (0, 6),
+                }),
+                Statement::Assign(AssignStatement {
+                    target: AtomExpression {
+                        var_name: "x".to_owned(),
+                        fields: Vec::new(),
+                    },
+                    value: Expression {
+                        value: ExpressionValue::Atom(AtomExpression {
+                            var_name: "y".to_owned(),
                             fields: Vec::new(),
-                        },
-                        value: Expression {
-                            value: ExpressionValue::Atom(
-                                AtomExpression {
-                                    var_name: "y".to_owned(),
-                                    fields: Vec::new(),
-                                }
-                            ),
-                            position: (0, 10),
-                        },
-                        position: (0, 8),
-                    }
-                )
-            ),
+                        }),
+                        position: (0, 10),
+                    },
+                    position: (0, 8),
+                }),
+            ],
             position: (0, 0),
         };
 
@@ -1432,45 +1446,41 @@ mod tests {
     #[test]
     fn test_return_stmt() {
         // return foo.bar;
-        let tokens1 = vec!(
+        let tokens1 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::Return),
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::Period),
             tokens::Token::Identifier("bar".to_owned()),
-            tokens::Token::Symbol(tokens::SymbolToken::Semicolon)
-        );
+            tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
+        ];
         // return;
-        let tokens2 = vec!(
+        let tokens2 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::Return),
-            tokens::Token::Symbol(tokens::SymbolToken::Semicolon)
-        );
+            tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
+        ];
         // return x = y;
-        let tokens3 = vec!(
+        let tokens3 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::Return),
             tokens::Token::Identifier("x".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::Assign),
             tokens::Token::Identifier("y".to_owned()),
-            tokens::Token::Symbol(tokens::SymbolToken::Semicolon)
-        );
+            tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
+        ];
         // return foo.bar
-        let tokens4 = vec!(
+        let tokens4 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::Return),
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Identifier("bar".to_owned()),
-        );
+        ];
 
         let stmt1 = ReturnStatement {
-            expression: Some(
-                Expression {
-                    value: ExpressionValue::Atom(
-                        AtomExpression {
-                            var_name: "foo".to_owned(),
-                            fields: vec!("bar".to_owned()),
-                        }
-                    ),
-                    position: (0, 1),
-                }
-            ),
+            expression: Some(Expression {
+                value: ExpressionValue::Atom(AtomExpression {
+                    var_name: "foo".to_owned(),
+                    fields: vec!["bar".to_owned()],
+                }),
+                position: (0, 1),
+            }),
             position: (0, 0),
         };
         let stmt2 = ReturnStatement {
@@ -1495,14 +1505,14 @@ mod tests {
     #[test]
     fn test_statement() {
         // foo.bar;
-        let tokens1 = vec!(
+        let tokens1 = vec![
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::Period),
             tokens::Token::Identifier("bar".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
-        );
+        ];
         // foo.bar.baz = a.b; c
-        let tokens2 = vec!(
+        let tokens2 = vec![
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::Period),
             tokens::Token::Identifier("bar".to_owned()),
@@ -1514,9 +1524,9 @@ mod tests {
             tokens::Token::Identifier("b".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
             tokens::Token::Identifier("c".to_owned()),
-        );
+        ];
         // if true { "foo"; } else { x = y; }
-        let tokens3 = vec!(
+        let tokens3 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::If),
             tokens::Token::Literal(tokens::LiteralToken::Bool(true)),
             tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
@@ -1530,9 +1540,9 @@ mod tests {
             tokens::Token::Identifier("y".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
-        );
+        ];
         // while test(1) { "foo"; x = y; }
-        let tokens4 = vec!(
+        let tokens4 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::While),
             tokens::Token::Identifier("test".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
@@ -1546,15 +1556,15 @@ mod tests {
             tokens::Token::Identifier("y".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
-        );
+        ];
         // return 1;
-        let tokens5 = vec!(
+        let tokens5 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::Return),
             tokens::Token::Literal(tokens::LiteralToken::Integer(1)),
             tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
-        );
+        ];
         // if foo { if bar {x=y;} else {y=x;} } else { while baz {1; 2; 3;} }
-        let tokens6 = vec!(
+        let tokens6 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::If),
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
@@ -1587,9 +1597,9 @@ mod tests {
             tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
-        );
+        ];
         // if foo { bar {x=y;} else {y=x;} } else { while baz {1; 2; 3;} }
-        let tokens7 = vec!(
+        let tokens7 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::If),
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
@@ -1621,251 +1631,176 @@ mod tests {
             tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
-        );
+        ];
         // foo.bar
-        let tokens8 = vec!(
+        let tokens8 = vec![
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::Period),
             tokens::Token::Identifier("bar".to_owned()),
-        );
+        ];
         // 1
-        let tokens9 = vec!(
-            tokens::Token::Literal(tokens::LiteralToken::Integer(1)),
-        );
+        let tokens9 = vec![tokens::Token::Literal(tokens::LiteralToken::Integer(1))];
 
-        let stmt1 = Statement::Expression(
-            Expression {
-                value: ExpressionValue::Atom(
-                    AtomExpression {
-                        var_name: "foo".to_owned(),
-                        fields: vec!("bar".to_owned()),
-                    }
-                ),
-                position: (0, 0),
-            }
-        );
-        let stmt2 = Statement::Assign(
-            AssignStatement {
+        let stmt1 = Statement::Expression(Expression {
+            value: ExpressionValue::Atom(AtomExpression {
+                var_name: "foo".to_owned(),
+                fields: vec!["bar".to_owned()],
+            }),
+            position: (0, 0),
+        });
+        let stmt2 = Statement::Assign(AssignStatement {
+            target: AtomExpression {
+                var_name: "foo".to_owned(),
+                fields: vec!["bar".to_owned(), "baz".to_owned()],
+            },
+            value: Expression {
+                value: ExpressionValue::Atom(AtomExpression {
+                    var_name: "a".to_owned(),
+                    fields: vec!["b".to_owned()],
+                }),
+                position: (0, 6),
+            },
+            position: (0, 0),
+        });
+        let stmt3 = Statement::IfElse(IfElseStatement {
+            condition: Expression {
+                value: ExpressionValue::Literal(LiteralExpression::Bool(true)),
+                position: (0, 1),
+            },
+            if_block: vec![Statement::Expression(Expression {
+                value: ExpressionValue::Literal(LiteralExpression::String("foo".to_owned())),
+                position: (0, 3),
+            })],
+            else_block: vec![Statement::Assign(AssignStatement {
                 target: AtomExpression {
-                    var_name: "foo".to_owned(),
-                    fields: vec!("bar".to_owned(), "baz".to_owned()),
+                    var_name: "x".to_owned(),
+                    fields: Vec::new(),
                 },
                 value: Expression {
-                    value: ExpressionValue::Atom(
-                        AtomExpression {
-                            var_name: "a".to_owned(),
-                            fields: vec!("b".to_owned()),
-                        }
-                    ),
+                    value: ExpressionValue::Atom(AtomExpression {
+                        var_name: "y".to_owned(),
+                        fields: Vec::new(),
+                    }),
+                    position: (0, 10),
+                },
+                position: (0, 8),
+            })],
+            position: (0, 0),
+        });
+        let stmt4 = Statement::While(WhileStatement {
+            condition: Expression {
+                value: ExpressionValue::Call(CallExpression {
+                    func_name: "test".to_owned(),
+                    args: vec![Expression {
+                        value: ExpressionValue::Literal(LiteralExpression::Int(1)),
+                        position: (0, 3),
+                    }],
+                    fields: Vec::new(),
+                }),
+                position: (0, 1),
+            },
+            body: vec![
+                Statement::Expression(Expression {
+                    value: ExpressionValue::Literal(LiteralExpression::String("foo".to_owned())),
                     position: (0, 6),
-                },
-                position: (0, 0),
-            }
-        );
-        let stmt3 = Statement::IfElse(
-            IfElseStatement {
-                condition: Expression {
-                    value: ExpressionValue::Literal(LiteralExpression::Bool(true)),
-                    position: (0, 1),
-                },
-                if_block: vec!(
-                    Statement::Expression(
-                        Expression {
-                            value: ExpressionValue::Literal(LiteralExpression::String("foo".to_owned())),
-                            position: (0, 3),
-                        }
-                    )
-                ),
-                else_block: vec!(
-                    Statement::Assign(
-                        AssignStatement {
-                            target: AtomExpression {
-                                var_name: "x".to_owned(),
-                                fields: Vec::new(),
-                            },
-                            value: Expression {
-                                value: ExpressionValue::Atom(
-                                    AtomExpression {
-                                        var_name: "y".to_owned(),
-                                        fields: Vec::new(),
-                                    }
-                                ),
-                                position: (0, 10),
-                            },
-                            position: (0, 8),
-                        }
-                    )
-                ),
-                position: (0, 0),
-            }
-        );
-        let stmt4 = Statement::While(
-            WhileStatement {
-                condition: Expression {
-                    value: ExpressionValue::Call(
-                        CallExpression {
-                            func_name: "test".to_owned(),
-                            args: vec!(
-                                Expression {
-                                    value: ExpressionValue::Literal(LiteralExpression::Int(1)),
-                                    position: (0, 3),
-                                }
-                            ),
+                }),
+                Statement::Assign(AssignStatement {
+                    target: AtomExpression {
+                        var_name: "x".to_owned(),
+                        fields: Vec::new(),
+                    },
+                    value: Expression {
+                        value: ExpressionValue::Atom(AtomExpression {
+                            var_name: "y".to_owned(),
                             fields: Vec::new(),
-                        }
-                    ),
-                    position: (0, 1),
-                },
-                body: vec!(
-                    Statement::Expression(
-                        Expression {
-                            value: ExpressionValue::Literal(LiteralExpression::String("foo".to_owned())),
-                            position: (0, 6),
-                        }
-                    ),
-                    Statement::Assign(
-                        AssignStatement {
-                            target: AtomExpression {
-                                var_name: "x".to_owned(),
-                                fields: Vec::new(),
-                            },
-                            value: Expression {
-                                value: ExpressionValue::Atom(
-                                    AtomExpression {
-                                        var_name: "y".to_owned(),
-                                        fields: Vec::new(),
-                                    }
-                                ),
-                                position: (0, 10),
-                            },
-                            position: (0, 8),
-                        }
-                    )
-                ),
-                position: (0, 0),
-            }
-        );
-        let stmt5 = Statement::Return(
-            ReturnStatement {
-                expression: Some(
-                    Expression {
-                        value: ExpressionValue::Literal(
-                            LiteralExpression::Int(1)
-                        ),
-                        position: (0, 1),
-                    }
-                ),
-                position: (0, 0),
-            }
-        );
+                        }),
+                        position: (0, 10),
+                    },
+                    position: (0, 8),
+                }),
+            ],
+            position: (0, 0),
+        });
+        let stmt5 = Statement::Return(ReturnStatement {
+            expression: Some(Expression {
+                value: ExpressionValue::Literal(LiteralExpression::Int(1)),
+                position: (0, 1),
+            }),
+            position: (0, 0),
+        });
 
-
-        let stmt6 = Statement::IfElse(
-            IfElseStatement {
+        let stmt6 = Statement::IfElse(IfElseStatement {
+            condition: Expression {
+                value: ExpressionValue::Atom(AtomExpression {
+                    var_name: "foo".to_owned(),
+                    fields: Vec::new(),
+                }),
+                position: (0, 1),
+            },
+            if_block: vec![Statement::IfElse(IfElseStatement {
                 condition: Expression {
-                    value: ExpressionValue::Atom(
-                        AtomExpression {
-                            var_name: "foo".to_owned(),
-                            fields: Vec::new(),
-                        }
-                    ),
-                    position: (0, 1),
+                    value: ExpressionValue::Atom(AtomExpression {
+                        var_name: "bar".to_owned(),
+                        fields: Vec::new(),
+                    }),
+                    position: (0, 4),
                 },
-                if_block: vec!(
-                    Statement::IfElse(
-                        IfElseStatement {
-                            condition: Expression {
-                                value: ExpressionValue::Atom(
-                                    AtomExpression {
-                                        var_name: "bar".to_owned(),
-                                        fields: Vec::new(),
-                                    }
-                                ),
-                                position: (0, 4),
-                            },
-                            if_block: vec!(
-                                Statement::Assign(
-                                    AssignStatement {
-                                        target: AtomExpression {
-                                            var_name: "x".to_owned(),
-                                            fields: Vec::new(),
-                                        },
-                                        value: Expression {
-                                            value: ExpressionValue::Atom(
-                                                AtomExpression {
-                                                    var_name: "y".to_owned(),
-                                                    fields: Vec::new(),
-                                                }
-                                            ),
-                                            position: (0, 8),
-                                        },
-                                        position: (0, 6),
-                                    }
-                                )
-                            ),
-                            else_block: vec!(
-                                Statement::Assign(
-                                    AssignStatement {
-                                        target: AtomExpression {
-                                            var_name: "y".to_owned(),
-                                            fields: Vec::new(),
-                                        },
-                                        value: Expression {
-                                            value: ExpressionValue::Atom(
-                                                AtomExpression {
-                                                    var_name: "x".to_owned(),
-                                                    fields: Vec::new(),
-                                                }
-                                            ),
-                                            position: (0, 15),
-                                        },
-                                        position: (0, 13),
-                                    }
-                                )
-                            ),
-                            position: (0, 3),
-                        }
-                    )
-                ),
-                else_block: vec!(
-                    Statement::While(
-                        WhileStatement {
-                            condition: Expression {
-                                value: ExpressionValue::Atom(
-                                    AtomExpression {
-                                        var_name: "baz".to_owned(),
-                                        fields: Vec::new(),
-                                    }
-                                ),
-                                position: (0, 22),
-                            },
-                            body: vec!(
-                                Statement::Expression(
-                                    Expression {
-                                        value: ExpressionValue::Literal(LiteralExpression::Int(1)),
-                                        position: (0, 24),
-                                    }
-                                ),
-                                Statement::Expression(
-                                    Expression {
-                                        value: ExpressionValue::Literal(LiteralExpression::Int(2)),
-                                        position: (0, 26),
-                                    }
-                                ),
-                                Statement::Expression(
-                                    Expression {
-                                        value: ExpressionValue::Literal(LiteralExpression::Int(3)),
-                                        position: (0, 28),
-                                    }
-                                )
-                            ),
-                            position: (0, 21),
-                        }
-                    )
-                ),
-                position: (0, 0),
-            }
-        );
+                if_block: vec![Statement::Assign(AssignStatement {
+                    target: AtomExpression {
+                        var_name: "x".to_owned(),
+                        fields: Vec::new(),
+                    },
+                    value: Expression {
+                        value: ExpressionValue::Atom(AtomExpression {
+                            var_name: "y".to_owned(),
+                            fields: Vec::new(),
+                        }),
+                        position: (0, 8),
+                    },
+                    position: (0, 6),
+                })],
+                else_block: vec![Statement::Assign(AssignStatement {
+                    target: AtomExpression {
+                        var_name: "y".to_owned(),
+                        fields: Vec::new(),
+                    },
+                    value: Expression {
+                        value: ExpressionValue::Atom(AtomExpression {
+                            var_name: "x".to_owned(),
+                            fields: Vec::new(),
+                        }),
+                        position: (0, 15),
+                    },
+                    position: (0, 13),
+                })],
+                position: (0, 3),
+            })],
+            else_block: vec![Statement::While(WhileStatement {
+                condition: Expression {
+                    value: ExpressionValue::Atom(AtomExpression {
+                        var_name: "baz".to_owned(),
+                        fields: Vec::new(),
+                    }),
+                    position: (0, 22),
+                },
+                body: vec![
+                    Statement::Expression(Expression {
+                        value: ExpressionValue::Literal(LiteralExpression::Int(1)),
+                        position: (0, 24),
+                    }),
+                    Statement::Expression(Expression {
+                        value: ExpressionValue::Literal(LiteralExpression::Int(2)),
+                        position: (0, 26),
+                    }),
+                    Statement::Expression(Expression {
+                        value: ExpressionValue::Literal(LiteralExpression::Int(3)),
+                        position: (0, 28),
+                    }),
+                ],
+                position: (0, 21),
+            })],
+            position: (0, 0),
+        });
 
         let result1 = Statement::parse_from(&give_tokens_positions(tokens1));
         let result2 = Statement::parse_from(&give_tokens_positions(tokens2));
@@ -1898,17 +1833,17 @@ mod tests {
     #[test]
     fn test_variable() {
         // x: int
-        let tokens1 = vec!(
+        let tokens1 = vec![
             tokens::Token::Identifier("x".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::Colon),
             tokens::Token::Keyword(tokens::KeywordToken::Int),
-        );
+        ];
         // x: 123
-        let tokens2 = vec!(
+        let tokens2 = vec![
             tokens::Token::Identifier("x".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::Colon),
-            tokens::Token::Literal(tokens::LiteralToken::Integer(123))
-        );
+            tokens::Token::Literal(tokens::LiteralToken::Integer(123)),
+        ];
 
         let var1 = Variable {
             name: "x".to_owned(),
@@ -1928,16 +1863,16 @@ mod tests {
     #[test]
     fn test_function() {
         // fn foo() {}
-        let tokens1 = vec!(
+        let tokens1 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::Fn),
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
             tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis),
             tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
-        );
+        ];
         // fn foo(x: int, y: float) -> string {x = y; return "";}
-        let tokens2 = vec!(
+        let tokens2 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::Fn),
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
@@ -1960,9 +1895,9 @@ mod tests {
             tokens::Token::Literal(tokens::LiteralToken::String("".to_owned())),
             tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
-        );
+        ];
         // fn foo() with a: int {}
-        let tokens3 = vec!(
+        let tokens3 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::Fn),
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
@@ -1973,9 +1908,9 @@ mod tests {
             tokens::Token::Keyword(tokens::KeywordToken::Int),
             tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
-        );
+        ];
         // fn foo(x: int, y: float) -> {return "";}
-        let tokens4 = vec!(
+        let tokens4 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::Fn),
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
@@ -1997,9 +1932,9 @@ mod tests {
             tokens::Token::Literal(tokens::LiteralToken::String("".to_owned())),
             tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
-        );
+        ];
         // fn foo(x: int, y: float);
-        let tokens5 = vec!(
+        let tokens5 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::Fn),
             tokens::Token::Identifier("foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftParenthesis),
@@ -2012,7 +1947,7 @@ mod tests {
             tokens::Token::Keyword(tokens::KeywordToken::Float),
             tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis),
             tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
-        );
+        ];
 
         let fn1 = Function {
             name: "foo".to_owned(),
@@ -2024,7 +1959,7 @@ mod tests {
         };
         let fn2 = Function {
             name: "foo".to_owned(),
-            parameters: vec!(
+            parameters: vec![
                 Variable {
                     name: "x".to_owned(),
                     typ: Type::Integer,
@@ -2034,54 +1969,44 @@ mod tests {
                     name: "y".to_owned(),
                     typ: Type::Float,
                     position: (0, 7),
-                }
-            ),
+                },
+            ],
             return_type: Some(Type::String),
             local_variables: Vec::new(),
-            body: vec!(
-                Statement::Assign(
-                    AssignStatement {
-                        target: AtomExpression {
-                            var_name: "x".to_owned(),
+            body: vec![
+                Statement::Assign(AssignStatement {
+                    target: AtomExpression {
+                        var_name: "x".to_owned(),
+                        fields: Vec::new(),
+                    },
+                    value: Expression {
+                        value: ExpressionValue::Atom(AtomExpression {
+                            var_name: "y".to_owned(),
                             fields: Vec::new(),
-                        },
-                        value: Expression {
-                            value: ExpressionValue::Atom(
-                                AtomExpression {
-                                    var_name: "y".to_owned(),
-                                    fields: Vec::new(),
-                                }
-                            ),
-                            position: (0, 16),
-                        },
-                        position: (0, 14),
-                    }
-                ),
-                Statement::Return(
-                    ReturnStatement {
-                        expression: Some(
-                            Expression {
-                                value: ExpressionValue::Literal(LiteralExpression::String("".to_owned())),
-                                position: (0, 19),
-                            }
-                        ),
-                        position: (0, 18),
-                    }
-                )
-            ),
+                        }),
+                        position: (0, 16),
+                    },
+                    position: (0, 14),
+                }),
+                Statement::Return(ReturnStatement {
+                    expression: Some(Expression {
+                        value: ExpressionValue::Literal(LiteralExpression::String("".to_owned())),
+                        position: (0, 19),
+                    }),
+                    position: (0, 18),
+                }),
+            ],
             position: (0, 0),
         };
         let fn3 = Function {
             name: "foo".to_owned(),
             parameters: Vec::new(),
             return_type: None,
-            local_variables: vec!(
-                Variable {
-                    name: "a".to_owned(),
-                    typ: Type::Integer,
-                    position: (0, 5),
-                }
-            ),
+            local_variables: vec![Variable {
+                name: "a".to_owned(),
+                typ: Type::Integer,
+                position: (0, 5),
+            }],
             body: Vec::new(),
             position: (0, 0),
         };
@@ -2106,14 +2031,14 @@ mod tests {
     #[test]
     fn test_struct() {
         // struct Foo {}
-        let tokens1 = vec!(
+        let tokens1 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::Struct),
             tokens::Token::Identifier("Foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
-        );
+        ];
         // struct Foo {x: int, y: float}
-        let tokens2 = vec!(
+        let tokens2 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::Struct),
             tokens::Token::Identifier("Foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
@@ -2125,9 +2050,9 @@ mod tests {
             tokens::Token::Symbol(tokens::SymbolToken::Colon),
             tokens::Token::Keyword(tokens::KeywordToken::Float),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
-        );
+        ];
         // struct Foo {x: Bar}
-        let tokens3 = vec!(
+        let tokens3 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::Struct),
             tokens::Token::Identifier("Foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
@@ -2135,9 +2060,9 @@ mod tests {
             tokens::Token::Symbol(tokens::SymbolToken::Colon),
             tokens::Token::Identifier("Bar".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
-        );
+        ];
         // struct Foo {x: int; y: float}
-        let tokens4 = vec!(
+        let tokens4 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::Struct),
             tokens::Token::Identifier("Foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
@@ -2149,15 +2074,15 @@ mod tests {
             tokens::Token::Symbol(tokens::SymbolToken::Colon),
             tokens::Token::Keyword(tokens::KeywordToken::Float),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
-        );
+        ];
         // struct Foo {x}
-        let tokens5 = vec!(
+        let tokens5 = vec![
             tokens::Token::Keyword(tokens::KeywordToken::Struct),
             tokens::Token::Identifier("Foo".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
             tokens::Token::Identifier("x".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
-        );
+        ];
 
         let str1 = Struct {
             name: "Foo".to_owned(),
@@ -2166,7 +2091,7 @@ mod tests {
         };
         let str2 = Struct {
             name: "Foo".to_owned(),
-            fields: vec!(
+            fields: vec![
                 Variable {
                     name: "x".to_owned(),
                     typ: Type::Integer,
@@ -2176,19 +2101,17 @@ mod tests {
                     name: "y".to_owned(),
                     typ: Type::Float,
                     position: (0, 7),
-                }
-            ),
+                },
+            ],
             position: (0, 0),
         };
         let str3 = Struct {
             name: "Foo".to_owned(),
-            fields: vec!(
-                Variable {
-                    name: "x".to_owned(),
-                    typ: Type::Struct("Bar".to_owned()),
-                    position: (0, 3),
-                },
-            ),
+            fields: vec![Variable {
+                name: "x".to_owned(),
+                typ: Type::Struct("Bar".to_owned()),
+                position: (0, 3),
+            }],
             position: (0, 0),
         };
 
@@ -2233,7 +2156,7 @@ mod tests {
             print(a)
         }
         */
-        let tokens = vec!(
+        let tokens = vec![
             tokens::Token::Keyword(tokens::KeywordToken::Struct),
             tokens::Token::Identifier("X".to_owned()),
             tokens::Token::Symbol(tokens::SymbolToken::LeftBrace),
@@ -2306,7 +2229,7 @@ mod tests {
             tokens::Token::Symbol(tokens::SymbolToken::RightParenthesis),
             tokens::Token::Symbol(tokens::SymbolToken::Semicolon),
             tokens::Token::Symbol(tokens::SymbolToken::RightBrace),
-        );
+        ];
 
         /*
         struct X {
@@ -2331,33 +2254,31 @@ mod tests {
         }
         */
         let program = Program {
-            structs: vec!(
-                Struct {
-                    name: "X".to_owned(),
-                    fields: vec!(
-                        Variable {
-                            name: "a".to_owned(),
-                            typ: Type::Integer,
-                            position: (0, 3),
-                        },
-                        Variable {
-                            name: "b".to_owned(),
-                            typ: Type::Float,
-                            position: (0, 7),
-                        },
-                        Variable {
-                            name: "c".to_owned(),
-                            typ: Type::String,
-                            position: (0, 11),
-                        }
-                    ),
-                    position: (0, 0),
-                }
-            ),
-            functions: vec!(
+            structs: vec![Struct {
+                name: "X".to_owned(),
+                fields: vec![
+                    Variable {
+                        name: "a".to_owned(),
+                        typ: Type::Integer,
+                        position: (0, 3),
+                    },
+                    Variable {
+                        name: "b".to_owned(),
+                        typ: Type::Float,
+                        position: (0, 7),
+                    },
+                    Variable {
+                        name: "c".to_owned(),
+                        typ: Type::String,
+                        position: (0, 11),
+                    },
+                ],
+                position: (0, 0),
+            }],
+            functions: vec![
                 Function {
                     name: "max".to_owned(),
-                    parameters: vec!(
+                    parameters: vec![
                         Variable {
                             name: "a".to_owned(),
                             typ: Type::Integer,
@@ -2367,154 +2288,114 @@ mod tests {
                             name: "b".to_owned(),
                             typ: Type::Integer,
                             position: (0, 22),
-                        }
-                    ),
+                        },
+                    ],
                     return_type: Some(Type::Integer),
                     local_variables: Vec::new(),
-                    body: vec!(
-                        Statement::IfElse(
-                            IfElseStatement {
-                                condition: Expression {
-                                    value: ExpressionValue::Call(
-                                        CallExpression {
-                                            func_name: "less".to_owned(),
-                                            args: vec!(
-                                                Expression {
-                                                    value: ExpressionValue::Atom(
-                                                        AtomExpression {
-                                                            var_name: "a".to_owned(),
-                                                            fields: Vec::new(),
-                                                        }
-                                                    ),
-                                                    position: (0, 32),
-                                                },
-                                                Expression {
-                                                    value: ExpressionValue::Atom(
-                                                        AtomExpression {
-                                                            var_name: "b".to_owned(),
-                                                            fields: Vec::new(),
-                                                        }
-                                                    ),
-                                                    position: (0, 34),
-                                                }
-                                            ),
+                    body: vec![Statement::IfElse(IfElseStatement {
+                        condition: Expression {
+                            value: ExpressionValue::Call(CallExpression {
+                                func_name: "less".to_owned(),
+                                args: vec![
+                                    Expression {
+                                        value: ExpressionValue::Atom(AtomExpression {
+                                            var_name: "a".to_owned(),
                                             fields: Vec::new(),
-                                        }
-                                    ),
-                                    position: (0, 30),
-                                },
-                                if_block: vec!(
-                                    Statement::Return(
-                                        ReturnStatement {
-                                            expression: Some(
-                                                Expression {
-                                                    value: ExpressionValue::Atom(
-                                                        AtomExpression {
-                                                            var_name: "b".to_owned(),
-                                                            fields: Vec::new(),
-                                                        }
-                                                    ),
-                                                    position: (0, 38),
-                                                }
-                                            ),
-                                            position: (0, 37),
-                                        }
-                                    )
-                                ),
-                                else_block: vec!(
-                                    Statement::Return(
-                                        ReturnStatement {
-                                            expression: Some(
-                                                Expression {
-                                                    value: ExpressionValue::Atom(
-                                                        AtomExpression {
-                                                            var_name: "a".to_owned(),
-                                                            fields: Vec::new(),
-                                                        }
-                                                    ),
-                                                    position: (0, 44),
-                                                }
-                                            ),
-                                            position: (0, 43),
-                                        }
-                                    )
-                                ),
-                                position: (0, 29),
-                            }
-                        )
-                    ),
+                                        }),
+                                        position: (0, 32),
+                                    },
+                                    Expression {
+                                        value: ExpressionValue::Atom(AtomExpression {
+                                            var_name: "b".to_owned(),
+                                            fields: Vec::new(),
+                                        }),
+                                        position: (0, 34),
+                                    },
+                                ],
+                                fields: Vec::new(),
+                            }),
+                            position: (0, 30),
+                        },
+                        if_block: vec![Statement::Return(ReturnStatement {
+                            expression: Some(Expression {
+                                value: ExpressionValue::Atom(AtomExpression {
+                                    var_name: "b".to_owned(),
+                                    fields: Vec::new(),
+                                }),
+                                position: (0, 38),
+                            }),
+                            position: (0, 37),
+                        })],
+                        else_block: vec![Statement::Return(ReturnStatement {
+                            expression: Some(Expression {
+                                value: ExpressionValue::Atom(AtomExpression {
+                                    var_name: "a".to_owned(),
+                                    fields: Vec::new(),
+                                }),
+                                position: (0, 44),
+                            }),
+                            position: (0, 43),
+                        })],
+                        position: (0, 29),
+                    })],
                     position: (0, 15),
                 },
                 Function {
                     name: "main".to_owned(),
                     parameters: Vec::new(),
                     return_type: None,
-                    local_variables: vec!(
-                        Variable {
-                            name: "x".to_owned(),
-                            typ: Type::Integer,
-                            position: (0, 53),
-                        }
-                    ),
-                    body: vec!(
-                        Statement::Assign(
-                            AssignStatement {
-                                target: AtomExpression {
-                                    var_name: "x".to_owned(),
-                                    fields: Vec::new(),
-                                },
-                                value: Expression {
-                                    value: ExpressionValue::Call(
-                                        CallExpression {
-                                            func_name: "max".to_owned(),
-                                            args: vec!(
-                                                Expression {
-                                                    value: ExpressionValue::Literal(
-                                                        LiteralExpression::Int(1)
-                                                    ),
-                                                    position: (0, 61),
-                                                },
-                                                Expression {
-                                                    value: ExpressionValue::Literal(
-                                                        LiteralExpression::Int(2)
-                                                    ),
-                                                    position: (0, 63),
-                                                }
+                    local_variables: vec![Variable {
+                        name: "x".to_owned(),
+                        typ: Type::Integer,
+                        position: (0, 53),
+                    }],
+                    body: vec![
+                        Statement::Assign(AssignStatement {
+                            target: AtomExpression {
+                                var_name: "x".to_owned(),
+                                fields: Vec::new(),
+                            },
+                            value: Expression {
+                                value: ExpressionValue::Call(CallExpression {
+                                    func_name: "max".to_owned(),
+                                    args: vec![
+                                        Expression {
+                                            value: ExpressionValue::Literal(
+                                                LiteralExpression::Int(1),
                                             ),
-                                            fields: Vec::new(),
-                                        }
-                                    ),
-                                    position: (0, 59),
-                                },
-                                position: (0, 57),
-                            }
-                        ),
-                        Statement::Expression(
-                            Expression {
-                                value: ExpressionValue::Call(
-                                    CallExpression {
-                                        func_name: "print".to_owned(),
-                                        args: vec!(
-                                            Expression {
-                                                value: ExpressionValue::Atom(
-                                                    AtomExpression {
-                                                        var_name: "x".to_owned(),
-                                                        fields: Vec::new(),
-                                                    }
-                                                ),
-                                                position: (0, 68),
-                                            }
-                                        ),
+                                            position: (0, 61),
+                                        },
+                                        Expression {
+                                            value: ExpressionValue::Literal(
+                                                LiteralExpression::Int(2),
+                                            ),
+                                            position: (0, 63),
+                                        },
+                                    ],
+                                    fields: Vec::new(),
+                                }),
+                                position: (0, 59),
+                            },
+                            position: (0, 57),
+                        }),
+                        Statement::Expression(Expression {
+                            value: ExpressionValue::Call(CallExpression {
+                                func_name: "print".to_owned(),
+                                args: vec![Expression {
+                                    value: ExpressionValue::Atom(AtomExpression {
+                                        var_name: "x".to_owned(),
                                         fields: Vec::new(),
-                                    }
-                                ),
-                                position: (0, 66),
-                            }
-                        )
-                    ),
+                                    }),
+                                    position: (0, 68),
+                                }],
+                                fields: Vec::new(),
+                            }),
+                            position: (0, 66),
+                        }),
+                    ],
                     position: (0, 48),
-                }
-            ),
+                },
+            ],
         };
 
         let result = Program::parse_from(&give_tokens_positions(tokens));
