@@ -12,7 +12,7 @@ fn max(a: int, b: int) -> int {
     }
 }
 
-fn main()
+fn main(input)
     with x: int
 {
     x = max(1, 2);

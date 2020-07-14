@@ -1,0 +1,77 @@
+struct X {
+    a: int,
+    b: float,
+    c: string
+}
+
+fn max(a: int, b: int) -> int {
+    if less(a, b) {
+        return b;
+    } else {
+        return a;
+    }
+}
+
+fn strat(s: string, i: int) -> string {
+    return substr(s, i, add(i, 1));
+}
+
+fn count_commas(s: string) -> int
+    with
+        i: int,
+        n: int
+{
+    i = 0;
+    n = 0;
+    while less(i, strlen(s)) {
+        if equal(",", strat(s, i)) {
+            n = add(n, 1);
+        }
+        i = add(i, 1);
+    }
+    return n;
+}
+
+fn get_nth_number(s: string, n: int) -> int
+    with
+        left: int,
+        right: int,
+        stop_loop: bool
+{
+    left = 0;
+    while less(0, n) {
+        if equal(",", strat(s, left)) {
+            n = sub(n, 1);
+        }
+        left = add(left, 1);
+    }
+
+    stop_loop = false;
+    right = left;
+    while not(stop_loop) {
+        stop_loop = not(less(right, strlen(s)));
+        if not(stop_loop) {
+            stop_loop = equal(",", strat(s, right));
+        }
+        if not(stop_loop) {
+            right = add(right, 1);
+        }
+    }
+    return str2int(substr(s, left, right));
+}
+
+fn main(input: string)
+    with
+        numbers: int,
+        i: int,
+        x: int
+{
+    numbers = add(count_commas(input), 1);
+    i = 0;
+    x = get_nth_number(input, 0);
+    while less(i, numbers) {
+        x = max(x, get_nth_number(input, i));
+        i = add(i, 1);
+    }
+    print(x);
+}

@@ -8,9 +8,10 @@ pub struct ExecutionError {
     pub message: String
 }
 
-pub fn execute_program(program: &parsetree::Program) -> Result<String, ExecutionError> {
+pub fn execute_program(program: &parsetree::Program, input: &str) -> Result<String, ExecutionError> {
     let definitions = definitions_from_program(program);
     let mut context = Context::new();
+    context.arguments = vec!(Value::String(input.to_string()));
     let main_function = definitions
         .function_definitions
         .get("main")
@@ -104,6 +105,7 @@ impl Executable for FunctionDefinition {
 
 #[derive(Debug)]
 #[derive(Clone)]
+#[derive(PartialEq)]
 enum Value {
     Bool(bool),
     Integer(i32),
@@ -198,6 +200,7 @@ impl ValueType {
 
 #[derive(Debug)]
 #[derive(Clone)]
+#[derive(PartialEq)]
 struct StructValue {
     struct_name: String,
     fields: HashMap<String, Value>,
@@ -237,6 +240,14 @@ fn add_predefined_functions(function_definitions: &mut HashMap<String, FunctionD
         };
         Ok(())
     }
+
+    fn fn_equal(definitions: &Definitions, context: &mut Context) -> Result<(), ExecutionError> {
+        if context.arguments.len() != 2 {
+            return Err(ExecutionError { message: "equal requires exactly two arguments.".to_owned() });
+        }
+        context.return_value = Some(Some(Value::Bool(context.arguments[0] == context.arguments[1])));
+        Ok(())
+    }
     fn fn_less(definitions: &Definitions, context: &mut Context) -> Result<(), ExecutionError> {
         if context.arguments.len() != 2 {
             return Err(ExecutionError { message: "less requires exactly two arguments.".to_owned() });
@@ -250,8 +261,118 @@ fn add_predefined_functions(function_definitions: &mut HashMap<String, FunctionD
         Ok(())
     }
 
-    function_definitions.insert("print".to_owned(), FunctionDefinition::Predefined(Box::new(fn_print)));
-    function_definitions.insert("less".to_owned(), FunctionDefinition::Predefined(Box::new(fn_less)));
+    fn fn_add(definitions: &Definitions, context: &mut Context) -> Result<(), ExecutionError> {
+        if context.arguments.len() != 2 {
+            return Err(ExecutionError { message: "add requires exactly two arguments.".to_owned() });
+        }
+        let result = match (&context.arguments[0], &context.arguments[1]) {
+            (Value::Integer(x), Value::Integer(y)) => Value::Integer(x + y),
+            (Value::Float(x), Value::Float(y)) => Value::Float(x + y),
+            _ => return Err(ExecutionError { message: "Cannot add non-numeric values.".to_owned() })
+        };
+        context.return_value = Some(Some(result));
+        Ok(())
+    }
+    fn fn_sub(definitions: &Definitions, context: &mut Context) -> Result<(), ExecutionError> {
+        if context.arguments.len() != 2 {
+            return Err(ExecutionError { message: "sub requires exactly two arguments.".to_owned() });
+        }
+        let result = match (&context.arguments[0], &context.arguments[1]) {
+            (Value::Integer(x), Value::Integer(y)) => Value::Integer(x - y),
+            (Value::Float(x), Value::Float(y)) => Value::Float(x - y),
+            _ => return Err(ExecutionError { message: "Cannot sub non-numeric values.".to_owned() })
+        };
+        context.return_value = Some(Some(result));
+        Ok(())
+    }
+
+    fn fn_not(definitions: &Definitions, context: &mut Context) -> Result<(), ExecutionError> {
+        if context.arguments.len() != 1 {
+            return Err(ExecutionError { message: "not requires exactly one argument".to_owned() });
+        }
+        let result = match &context.arguments[0] {
+            Value::Bool(x) => !x,
+            _ => return Err(ExecutionError { message: "Can only use boolean logic on bools.".to_owned() })
+        };
+        context.return_value = Some(Some(Value::Bool(result)));
+        Ok(())
+    }
+    fn fn_or(definitions: &Definitions, context: &mut Context) -> Result<(), ExecutionError> {
+        if context.arguments.len() != 2 {
+            return Err(ExecutionError { message: "or requires exactly two arguments.".to_owned() });
+        }
+        let result = match (&context.arguments[0], &context.arguments[1]) {
+            (Value::Bool(x), Value::Bool(y)) => *x || *y,
+            _ => return Err(ExecutionError { message: "Can only use boolean logic on bools.".to_owned() })
+        };
+        context.return_value = Some(Some(Value::Bool(result)));
+        Ok(())
+    }
+    fn fn_and(definitions: &Definitions, context: &mut Context) -> Result<(), ExecutionError> {
+        if context.arguments.len() != 2 {
+            return Err(ExecutionError { message: "and requires exactly two arguments.".to_owned() });
+        }
+        let result = match (&context.arguments[0], &context.arguments[1]) {
+            (Value::Bool(x), Value::Bool(y)) => *x && *y,
+            _ => return Err(ExecutionError { message: "Can only use boolean logic on bools.".to_owned() })
+        };
+        context.return_value = Some(Some(Value::Bool(result)));
+        Ok(())
+    }
+
+    fn fn_substr(definitions: &Definitions, context: &mut Context) -> Result<(), ExecutionError> {
+        if context.arguments.len() != 3 {
+            return Err(ExecutionError { message: "substr requires exactly three arguments".to_owned() });
+        }
+        if let (Value::String(s), Value::Integer(left), Value::Integer(right)) = (&context.arguments[0], &context.arguments[1], &context.arguments[2]) {
+            let substr = s[*left as usize..*right as usize].to_owned();
+            context.return_value = Some(Some(Value::String(substr)));
+        } else {
+            return Err(ExecutionError { message: "substr expects a String and two Integers.".to_owned() })
+        }
+        Ok(())
+    }
+    fn fn_str2int(definitions: &Definitions, context: &mut Context) -> Result<(), ExecutionError> {
+        if context.arguments.len() != 1 {
+            return Err(ExecutionError { message: "str2int requires exactly one argument".to_owned() });
+        }
+        if let Value::String(s) = &context.arguments[0] {
+            let parsed = s.parse().map_err(|_| ExecutionError {message: format!("Could not parse {} to int.", s)})?;
+            context.return_value = Some(Some(Value::Integer(parsed)));
+        } else {
+            return Err(ExecutionError { message: "str2int expects a String.".to_owned() })
+        }
+        Ok(())
+    }
+    fn fn_strlen(definitions: &Definitions, context: &mut Context) -> Result<(), ExecutionError> {
+        if context.arguments.len() != 1 {
+            return Err(ExecutionError { message: "strlen requires exactly one argument".to_owned() });
+        }
+        if let Value::String(s) = &context.arguments[0] {
+            context.return_value = Some(Some(Value::Integer(s.len() as i32)));
+        } else {
+            return Err(ExecutionError { message: "strlen expects a String.".to_owned() })
+        }
+        Ok(())
+    }
+
+
+    let fns_with_names: Vec<(&str, Box<Fn(&Definitions, &mut Context) -> Result<(), ExecutionError>>)> = vec!(
+        ("print", Box::new(fn_print)),
+        ("equal", Box::new(fn_equal)),
+        ("add", Box::new(fn_add)),
+        ("sub", Box::new(fn_sub)),
+        ("less", Box::new(fn_less)),
+        ("not", Box::new(fn_not)),
+        ("or", Box::new(fn_or)),
+        ("and", Box::new(fn_and)),
+        ("substr", Box::new(fn_substr)),
+        ("str2int", Box::new(fn_str2int)),
+        ("strlen", Box::new(fn_strlen))
+    );
+    for (fn_name, fn_impl) in fns_with_names.into_iter() {
+        function_definitions.insert(fn_name.to_string(), FunctionDefinition::Predefined(fn_impl));
+    }
 }
 
 
@@ -567,7 +688,13 @@ mod tests {
                 },
                 Function {
                     name: "main".to_owned(),
-                    parameters: Vec::new(),
+                    parameters: vec!(
+                        Variable {
+                            name: "input".to_owned(),
+                            typ: Type::String,
+                            position: (15, 8)
+                        }
+                    ),
                     return_type: None,
                     local_variables: vec!(
                         Variable {
@@ -637,7 +764,7 @@ mod tests {
             ),
         };
 
-        let x = super::execute_program(&parse_tree);
+        let x = super::execute_program(&parse_tree, "");
         assert!(x.is_ok());
         assert_eq!(x.unwrap(), "2".to_owned());
     }
